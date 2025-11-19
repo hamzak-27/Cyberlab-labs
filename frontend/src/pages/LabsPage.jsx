@@ -7,7 +7,7 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 
-export default function LabsPage() {
+export default function LabsPage({user}) {
   const [labs, setLabs] = useState([])
   const [activeLab, setActiveLab] = useState(null)
   const [flag, setFlag] = useState('')
@@ -138,7 +138,7 @@ export default function LabsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Sidebar - Now fixed overlay, not in flex layout */}
-      <Sidebar />
+      <Sidebar user={user} />
       
       <main className="p-6 pt-[70px] md:pt-6 md:ml-80 overflow-auto">
         {/* Header Section */}

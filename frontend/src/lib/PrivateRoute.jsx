@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 
 const PrivateRoute = ({ children, allowedRoles = [] }) => {
   const { user, loading } = useAuth();
+  
   console.log(children)
 
   if (loading) {

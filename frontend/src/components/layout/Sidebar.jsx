@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
+import { useAuth } from '../../context/AuthContext';
 
 import { Shield, BookOpen, FlaskConical, Users, LogOut, Zap, Target, Menu, X } from 'lucide-react'
 import axios from 'axios'
@@ -11,6 +12,7 @@ const Sidebar = ({ user, stats }) => {
   const location = useLocation()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const scrollPositionRef = useRef(0)
+  const { setUser } = useAuth();
 
   // Lock body scroll when mobile sidebar is open
   useEffect(() => {
@@ -77,7 +79,10 @@ const Sidebar = ({ user, stats }) => {
         {},
         { withCredentials: true }
       );
+
       // Clear user data
+     
+      setUser(null)
         toast.success("🔐 You are securely logged out.");
 
       navigate("/login");
@@ -150,16 +155,20 @@ const Sidebar = ({ user, stats }) => {
           </div>
 
           {/* User Stats */}
-          <div className="grid grid-cols-2 gap-2 md:gap-3 mt-4">
-            <div className="text-center p-2 bg-gray-800/50 rounded-lg backdrop-blur-sm">
-              <div className="text-cyan-400 font-bold text-base md:text-lg">{stats?.flagsCaptured || 0}</div>
-              <div className="text-gray-400 text-xs">Flags</div>
-            </div>
-            <div className="text-center p-2 bg-gray-800/50 rounded-lg backdrop-blur-sm">
-              <div className="text-green-400 font-bold text-base md:text-lg">{stats?.labsMastered || 0}</div>
-              <div className="text-gray-400 text-xs">Labs</div>
-            </div>
-          </div>
+         <div className="grid grid-cols-2 gap-2 md:gap-3 mt-4">
+  <div className="text-center p-2 bg-gray-800/50 rounded-lg backdrop-blur-sm">
+    <div className="text-cyan-400 font-bold text-base md:text-lg">
+      {user?.labsStats?.totalFlagsCaptured || 0}
+    </div>
+    <div className="text-gray-400 text-xs">Flags</div>
+  </div>
+  <div className="text-center p-2 bg-gray-800/50 rounded-lg backdrop-blur-sm">
+    <div className="text-green-400 font-bold text-base md:text-lg">
+      {user?.labsStats?.labsCompleted || 0}
+    </div>
+    <div className="text-gray-400 text-xs">Labs</div>
+  </div>
+</div>
         </motion.div>
 
         {/* Main Navigation */}
@@ -266,7 +275,7 @@ const Sidebar = ({ user, stats }) => {
         </motion.div>
 
         {/* Progress Section */}
-        <motion.div
+        {/* <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.6 }}
@@ -297,7 +306,7 @@ const Sidebar = ({ user, stats }) => {
           <div className="mt-2 text-xs text-gray-400 text-center">
             {stats?.modulesCompleted || 0} of 12 modules completed
           </div>
-        </motion.div>
+        </motion.div> */}
 
         {/* Logout Button */}
         <motion.div

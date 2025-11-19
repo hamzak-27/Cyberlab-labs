@@ -1,71 +1,105 @@
-import React, { useState ,useEffect} from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { ArrowLeft, Check, CheckCircle, Download, FileText } from 'lucide-react'
-import Sidebar from '../components/layout/Sidebar'
-import Card from '../components/ui/Card'
-import Button from '../components/ui/Button'
-import axios from 'axios'
+// src/pages/ModuleContentPage.jsx
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Check } from 'lucide-react';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useAuthStore } from '../store/useAuthStore';
+import toast from 'react-hot-toast';
 
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+export default function ModuleContentPage({user}) {
+  const { courseId, moduleId } = useParams();
+  const navigate = useNavigate();
 
-export default function ModuleContentPage() {
-  const { courseId, moduleId } = useParams()
-  const navigate = useNavigate()
-  const [completedLessons, setCompletedLessons] = useState([])
-    const [course, setCourse] = useState(null);
-    const [allModules, setAllModules] = useState([]);
-    const [currentModule, setCurrentModule] = useState(null);
-    const [lessons, setLessons] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [activeSection, setActiveSection] = useState(null);
-  
-    useEffect(() => {
-     
-      fetchCurrentModuleData();
-    }, [moduleId]);
-  
+  const [allModules, setAllModules] = useState([]);
+  const [currentModule, setCurrentModule] = useState(null);
+  const [lesson, setLesson] = useState(null);
+  const [loading, setLoading] = useState(true);
 
+  const authUser = useAuthStore((s) => s.user);
 
-   const fetchCurrentModuleData = async () => {
+  // Fetch all modules of the course
+  useEffect(() => {
+    const fetchModules = async () => {
       try {
-        setLoading(true);
-        const response = await axios.get(
+        const res = await axios.get(`http://localhost:5001/api/module/${courseId}/modules`, {
+          withCredentials: true,
+        });
+        setAllModules(res.data.modules || []);
+      } catch (err) {
+        console.error('Error fetching modules:', err);
+        toast.error('Failed to fetch modules');
+      }
+    };
+    fetchModules();
+  }, [courseId]);
+
+  // Fetch current module's lesson
+  useEffect(() => {
+    const fetchLesson = async () => {
+      if (!moduleId) return;
+      setLoading(true);
+      try {
+        const res = await axios.get(
           `http://localhost:5001/api/lesson/${moduleId}/lessons`,
           { withCredentials: true }
         );
-        setCurrentModule(response.data.module);
-        setLessons(response.data.lessons);
-      } catch (error) {
-        console.error("Error fetching lessons:", error);
+        setCurrentModule(res.data.module || null);
+        setLesson(res.data.lessons || null); // lessons is a single object
+      } catch (err) {
+        console.error('Error fetching lesson:', err);
+        toast.error('Failed to fetch lesson');
       } finally {
         setLoading(false);
       }
     };
-  
+    fetchLesson();
+  }, [moduleId]);
 
-  
+  const goBack = () => navigate(`/courses/${courseId}`);
 
-  const toggleLessonComplete = (lessonId) => {
-    setCompletedLessons(prev => 
-      prev.includes(lessonId) 
-        ? prev.filter(id => id !== lessonId)
-        : [...prev, lessonId]
-    )
-  }
+  const markLessonComplete = async () => {
+    if (!lesson) return;
 
-  const downloadResource = (resource) => {
-    // TODO: Implement actual download functionality
-    console.log('Downloading:', resource.name)
-  }
+    try {
+      await axios.post(
+        'http://localhost:5001/api/progress/lesson/complete',
+        {
+          userId: user._id,
+          courseId,
+          moduleId,
+          lessonId: lesson._id,
+        },
+        { withCredentials: true }
+      );
 
-  const goBack = () => {
-    navigate(`/courses/${courseId}`)
-  }
- const markdownComponents = {
+      toast.success('Lesson marked complete');
+
+      // Navigate to next module's lesson
+      const currentIndex = allModules.findIndex((m) => m._id === moduleId);
+      const nextModule = allModules[currentIndex + 1];
+
+      if (nextModule) {
+        navigate(`/courses/${courseId}/${nextModule._id}/learn`);
+      } else {
+        toast('You have completed all modules!');
+      }
+    } catch (err) {
+      console.error('markLessonComplete error:', err);
+      toast.error('Could not mark lesson complete');
+    }
+  };
+
+  const markdownComponents = {
+    // ... (keep the same markdown components you already have)
+    // I leave them unchanged to avoid verbosity in this response.
+    // Copy the same markdownComponents from your original file here (unchanged).
     h1: ({ node, ...props }) => (
       <div className="relative mb-8 mt-12 first:mt-0">
         <div className="absolute -left-8 top-0 w-1 h-full bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
@@ -93,8 +127,6 @@ export default function ModuleContentPage() {
         {...props}
       />
     ),
-
-    // Paragraphs
     p: ({ node, ...props }) => (
       <p
         className="text-gray-300 text-left leading-relaxed mb-6 text-lg font-serif"
@@ -115,8 +147,6 @@ export default function ModuleContentPage() {
         <span className="text-lg">{children}</span>
       </li>
     ),
-
-    // Links with gradient underline
     a: ({ node, ...props }) => (
       <a
         className="relative text-blue-400 hover:text-blue-300 transition-colors font-medium no-underline after:content-[''] after:absolute after:left-0 after:bottom-0 after:w-full after:h-[2px] after:bg-gradient-to-r after:from-blue-500 after:to-purple-500 after:opacity-50 hover:after:opacity-100 after:transition-opacity"
@@ -147,18 +177,6 @@ export default function ModuleContentPage() {
               onClick={() => navigator.clipboard.writeText(code)}
               className="px-3 py-1.5 bg-gray-800/80 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs text-gray-300 backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 flex items-center gap-2"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-              </svg>
               Copy
             </button>
           </div>
@@ -192,12 +210,16 @@ export default function ModuleContentPage() {
           </div>
         </div>
       ) : (
+        <div className='overflow-x-auto overflow-y-hidden scrollbar-hide-desktop '>
+
+       
         <code
           className="px-2 py-1 bg-gray-800/70 text-blue-400 rounded-md text-sm font-mono border border-gray-700 whitespace-nowrap"
           {...props}
         >
           {children}
         </code>
+         </div>
       );
     },
     blockquote: ({ node, ...props }) => (
@@ -253,238 +275,85 @@ export default function ModuleContentPage() {
     del: ({ node, ...props }) => (
       <del className="text-gray-500 line-through" {...props} />
     ),
-  };
+  }
+
+
+  if (loading) return <p className="text-white text-center mt-12">Loading...</p>;
+  if (!currentModule || !lesson)
+    return <p className="text-white text-center mt-12">Module or lesson not found.</p>;
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      
-      
-      <main className="flex-1 p-6 pt-[70px] md:pt-6 md:ml-80 overflow-auto">
-        {/* Header with Back Button */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <Button
-            variant="secondary"
-            icon={<ArrowLeft className="w-4 h-4" />}
-            onClick={goBack}
-            className="mb-4"
-          >
+     <div className="flex min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <main className="flex-1 p-6 pt-[70px] md:pt-6 md:mx-16 overflow-auto scrollbar-hide-desktop overflow-y-hidden">
+        {/* Header */}
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+          <Button variant="secondary" icon={<ArrowLeft className="w-4 h-4" />} onClick={goBack} className="mb-4">
             Back to Modules
           </Button>
-          {/* {currentModule && (
-              <div>
-                <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-3">
-                  {currentModule.title} - Lessons
-                </h3>
-                <div className="space-y-1">
-                  <button
-                    key={lessons._id}
-                    onClick={() => scrollToLesson(lessons._id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg transition-all group ${
-                      activeSection === lessons._id
-                        ? "bg-blue-600/10 border border-blue-500/30 text-white"
-                        : "text-gray-400 hover:text-white hover:bg-gray-700/20"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold ${
-                          activeSection === lessons._id
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-700 text-gray-400 group-hover:bg-gray-600"
-                        }`}
-                      >
-                        {lessons.order}
-                      </div>
-                      <span className="text-sm truncate flex-1">
-                        {lessons.title}
-                      </span>
-                    </div>
-                  </button>
-                </div>
-              </div>
-            )} */}
-
-         
         </motion.div>
-
 
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Main Content - 2/3 width */}
+          {/* Lesson Content */}
           <div className="flex-1 lg:w-2/3">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
-              {/* Lessons */}
-              {lessons && lessons.markdownContent ? (
-                  <div className="space-y-16 rounded-lg border border-gray-700 p-9">
-                    <div
-                      key={lessons._id}
-                      id={`lesson-${lessons._id}`}
-                      className="scroll-mt-24 border-gray-700"
-                    >
-                      {/* Lesson Header */}
-                      <div className="mb-8">
-                        <div className="flex items-center gap-4 mb-4 " >
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-                            <span className="text-white font-bold text-lg">
-                              {lessons.order}
-                            </span>
-                          </div>
-                          <div>
-                            <h2 className="text-3xl font-bold text-white">
-                              {lessons.title}
-                            </h2>
-                            <p className="text-sm text-gray-500">
-                              ~
-                              {Math.ceil(
-                                lessons.markdownContent.split(" ").length / 200
-                              )}{" "}
-                              min read
-                            </p>
-                          </div>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              {lesson ? (
+                <div className="space-y-16 rounded-lg border border-gray-700 p-9">
+                  <div key={lesson._id} id={`lesson-${lesson._id}`} className="scroll-mt-24 border-gray-700">
+                    <div className="mb-8">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
+                          <span className="text-white font-bold text-lg">{}</span>
                         </div>
-                        <div className="h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-transparent rounded-full "></div>
-                      </div>
-
-                      {/* Lesson Content */}
-                      <div className="prose prose-invert prose-blue prose-lg max-w-none  border-gray-700">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={markdownComponents}
-                        >
-                          {lessons.markdownContent}
-                        </ReactMarkdown>
-                      </div>
-
-                      {/* Lesson Divider */}
-                      {/* {index < lessons.length - 1 && (
-                        <div className="mt-16 pt-16 border-t border-gray-700/50"></div>
-                      )} */}
-                       <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <Button
-            variant="secondary"
-            icon={ <Check className="w-4 h-4" />}
-           
-            onClick={goBack}
-            className="mb-4 ml-auto"
-          >
-            mark as complete
-          </Button>
-          {/* {currentModule && (
-              <div>
-                <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-3">
-                  {currentModule.title} - Lessons
-                </h3>
-                <div className="space-y-1">
-                  <button
-                    key={lessons._id}
-                    onClick={() => scrollToLesson(lessons._id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg transition-all group ${
-                      activeSection === lessons._id
-                        ? "bg-blue-600/10 border border-blue-500/30 text-white"
-                        : "text-gray-400 hover:text-white hover:bg-gray-700/20"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold ${
-                          activeSection === lessons._id
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-700 text-gray-400 group-hover:bg-gray-600"
-                        }`}
-                      >
-                        {lessons.order}
-                      </div>
-                      <span className="text-sm truncate flex-1">
-                        {lessons.title}
-                      </span>
-                    </div>
-                  </button>
-                </div>
-              </div>
-            )} */}
-
-         
-        </motion.div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-12 bg-[#141d2b] rounded-2xl border border-gray-700">
-                    <p className="text-gray-400">
-                      No lessons in this module yet
-                    </p>
-                  </div>
-                )}
-
-              {/* Resources */}
-              {/* <Card className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50">
-                <h3 className="text-xl font-semibold text-white mb-4">Resources</h3>
-                <div className="space-y-3">
-                  {moduleData.resources.map((resource, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-cyan-400" />
                         <div>
-                          <div className="text-white font-medium">{resource.name}</div>
-                          <div className="text-gray-400 text-sm">
-                            {resource.type.toUpperCase()} • {resource.size}
-                          </div>
+                          <h2 className="text-3xl font-bold text-white">{lesson.title}</h2>
+                          <p className="text-sm text-gray-500">
+                            ~{Math.ceil(lesson.markdownContent.split(" ").length / 200)} min read
+                          </p>
                         </div>
                       </div>
+                      <div className="h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-transparent rounded-full"></div>
+                    </div>
+
+                    <div className="prose prose-invert prose-blue prose-lg max-w-none border-gray-700">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                        {lesson.markdownContent}
+                      </ReactMarkdown>
+                    </div>
+
+                    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
                       <Button
                         variant="secondary"
-                        size="sm"
-                        icon={<Download className="w-4 h-4" />}
-                        onClick={() => downloadResource(resource)}
+                        icon={<Check className="w-4 h-4" />}
+                        onClick={() => markLessonComplete(lesson)}
+                        className="mb-4 ml-auto"
                       >
-                        Download
+                        Mark as Complete
                       </Button>
-                    </div>
-                  ))}
+                    </motion.div>
+                  </div>
                 </div>
-              </Card> */}
+              ) : (
+                <div className="text-center py-12 bg-[#141d2b] rounded-2xl border border-gray-700">
+                  <p className="text-gray-400">No lessons in this module yet</p>
+                </div>
+              )}
             </motion.div>
           </div>
 
-          {/* Sidebar - 1/3 width */}
+          {/* Sidebar */}
           <div className="lg:w-1/3 flex-shrink-0">
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="space-y-6"
-            >
-              {/* Progress Summary */}
-             
-
-              {/* Quick Navigation */}
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               <Card className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50">
                 <h3 className="text-lg font-semibold text-white mb-4">Continue Learning</h3>
                 <div className="space-y-2">
                   <Button
                     variant="secondary"
                     className="w-full justify-start"
-                    onClick={() => navigate(`/courses/${courseId}/modules/${moduleId}/video`)}
+                    onClick={() => navigate(`/courses/${courseId}/${moduleId}/video`, { state: lesson.title })}
                   >
                     Watch Video Lesson
                   </Button>
-                  <Button
-                    variant="secondary"
-                    className="w-full justify-start"
-                    onClick={goBack}
-                  >
+                  <Button variant="secondary" className="w-full justify-start" onClick={goBack}>
                     Back to Module List
                   </Button>
                 </div>
@@ -494,5 +363,5 @@ export default function ModuleContentPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

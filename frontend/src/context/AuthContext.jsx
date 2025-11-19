@@ -7,13 +7,18 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Fetch current user (cookie-based)
+  const isAuthenticated = !!user;
+
+  // Fetch logged-in user using cookie JWT
   const fetchUser = async () => {
     try {
-     const res = await axios.get("http://localhost:5001/api/user/me", {
+      const res = await axios.get("http://localhost:5001/api/user/me", {
         withCredentials: true,
       });
-      setUser(res.data); 
+console.log(res,"this is from res authcontext me")
+      // EXPECTED RESPONSE: { success, user }
+       setUser(res.data || null);
+
     } catch (err) {
       setUser(null);
     } finally {
@@ -25,24 +30,43 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, []);
 
-  // ✅ Handle login
+  // Login function
   const login = async (email, password) => {
     const res = await axios.post(
       "http://localhost:5001/api/auth/login",
       { email, password },
       { withCredentials: true }
     );
-    setUser(res.data.user);
+
+    setUser(res.data.user); // backend must send user object
+    return res.data.user;
   };
 
-  // ✅ Handle logout
+  // Logout function
   const logout = async () => {
-    await axios.post("http://localhost:5001/api/auth/logout", {}, { withCredentials: true });
+    await axios.post(
+      "http://localhost:5001/api/auth/logout",
+      {},
+      { withCredentials: true }
+    );
+    console.log("hello")
     setUser(null);
+    navigate("/login");
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, logout, fetchUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        setUser,
+        loading,
+        isAuthenticated,
+        login,
+        logout,
+        fetchUser,
+       
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

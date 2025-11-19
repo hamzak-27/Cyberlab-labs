@@ -84,7 +84,7 @@ export default function ModulePage() {
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <main className="flex-1 p-6 pt-[70px] md:pt-6 md:ml-80 overflow-auto">
+      <main className="flex-1 p-6 pt-[70px] md:pt-6 md:mx-16 overflow-auto">
         {/* Header */}
            <motion.div
                   initial={{ opacity: 0, y: -20 }}
@@ -155,10 +155,11 @@ export default function ModulePage() {
             <h2 className="text-2xl font-bold text-white mb-6">
               Course Modules
             </h2>
-            {modules.map((module) => (
+            {modules.map((module,idx) => (
              
               <ModulePageCard
                 key={module._id}
+                 number={idx}
                 module={module}
                 courseId={id}
                 onProgressUpdate={() => fetchCourseAndModules()}

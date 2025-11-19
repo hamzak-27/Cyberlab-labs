@@ -19,7 +19,7 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 
-export default function Community() {
+export default function Community({user}) {
   const [posts, setPosts] = useState([])
   const [text, setText] = useState('')
   const [activeTab, setActiveTab] = useState('all')
@@ -185,7 +185,7 @@ export default function Community() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Desktop sidebar always shown via your Sidebar component */}
-      <Sidebar />
+      <Sidebar user={user} />
 
       <main className="p-4 md:p-6 pt-[70px] md:pt-6 md:ml-80 overflow-auto">
         {/* Header */}
