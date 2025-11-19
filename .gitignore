@@ -1,0 +1,11 @@
+Lampiao/
+*.vmdk
+*.vdi
+*.vbox
+*.ovf
+*.ova
+storage/ova-files/
+node_modules/
+*.log
+logs/
+.env

@@ -1,0 +1,679 @@
+/* Dashboard specific styles */
+.dashboard-main {
+  padding: 0;
+  width: 100%;
+}
+
+/* Sidebar-related styles removed - now handled by Layout.css */
+
+.beta-badge {
+  background-color: rgba(227, 24, 55, 0.1); /* Red with low opacity */
+  color: #e31837; /* Red color */
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  margin-left: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Icons placeholder styles */
+[class^="icon-"] {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background-color: rgba(227, 24, 55, 0.15); /* Red with low opacity */
+  border-radius: 4px;
+  margin-right: 10px;
+}
+
+.icon-dashboard {
+  background-color: #e31837; /* Red color */
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 13h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zm0 8h6c.55 0 1-.45 1-1v-4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1zm10 0h6c.55 0 1-.45 1-1v-8c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zm0-12h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1z'%3E%3C/path%3E%3C/svg%3E");
+}
+
+.icon-home {
+  background-color: #0a1323; /* Navy color */
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z'%3E%3C/path%3E%3C/svg%3E");
+}
+
+/* Main dashboard content */
+.dashboard-main {
+  flex: 1;
+  padding: 30px;
+  background-color: #ffffff; /* White background */
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding: 0;
+  height: 50px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  background-color: #f8f9fa; /* Light gray background */
+  border-radius: 4px;
+  padding: 8px 15px;
+  width: 350px;
+  border: 1px solid #e1e1e1; /* Light border */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+}
+
+.search-bar svg,
+.search-bar .search-icon {
+  margin-right: 10px;
+  color: #888888; /* Medium gray icon */
+  width: 18px;
+  height: 18px;
+}
+
+.search-bar input {
+  background: none;
+  border: none;
+  color: #333333; /* Dark text */
+  outline: none;
+  width: 100%;
+  font-size: 14px;
+}
+
+.search-bar input::placeholder {
+  color: #888888; /* Medium gray text */
+}
+
+.top-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.notification-btn {
+  background: #f8f9fa; /* Light gray background */
+  border: none;
+  color: #555555; /* Medium dark gray for icon */
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid #e1e1e1; /* Light border */
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+}
+
+.notification-btn:hover {
+  background: #ffffff;
+  border-color: #d5d5d5;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.notification-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.upgrade-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(227, 24, 55, 0.1); /* Red with low opacity */
+  border: 1px solid rgba(227, 24, 55, 0.3); /* Red border with low opacity */
+  color: #e31837; /* Red text */
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upgrade-btn:hover {
+  background: rgba(227, 24, 55, 0.2); /* Darker red background on hover */
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(227, 24, 55, 0.2); /* Red shadow */
+}
+
+.upgrade-btn svg,
+.upgrade-btn .upgrade-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.user-profile:hover {
+  background-color: #f8f9fa; /* Light gray background */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #e31837; /* Red border for avatar */
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333333; /* Dark text */
+}
+
+.user-dropdown {
+  margin-left: 5px;
+  opacity: 0.7;
+  font-size: 12px;
+  color: #555555; /* Medium dark gray for icon */
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+}
+
+.dashboard-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #0a1323; /* Navy text */
+  position: relative;
+}
+
+.dashboard-header h1::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 40px;
+  height: 3px;
+  background-color: #e31837; /* Red underline accent */
+  border-radius: 2px;
+}
+
+/* Breadcrumbs styles moved to Layout.css */
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #555555; /* Medium dark gray text */
+}
+
+/* Progress circles section */
+.progress-section {
+  display: flex;
+  gap: 60px;
+  margin-bottom: 50px;
+  justify-content: center;
+}
+
+.progress-circle {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  background-color: #ffffff; /* White background */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+}
+
+.progress-circle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  border: 4px solid #f0f0f0; /* Light gray border */
+}
+
+/* Circle background with glow */
+.progress-circle::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  border-radius: 50%;
+  z-index: -1;
+  filter: blur(12px);
+}
+
+.offensive::after {
+  background: rgba(227, 24, 55, 0.15); /* Red glow */
+}
+
+.defensive::after {
+  background: rgba(10, 19, 35, 0.1); /* Navy glow */
+}
+
+.general::after {
+  background: rgba(227, 24, 55, 0.1); /* Red glow */
+}
+
+/* Progress track */
+.progress-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Offensive track */
+.offensive .progress-track {
+  background: conic-gradient(#e31837 0% var(--progress, 0%), transparent var(--progress, 0%) 100%);
+  mask: radial-gradient(transparent 65%, black 66%);
+  -webkit-mask: radial-gradient(transparent 65%, black 66%);
+  transform: rotate(-90deg);
+}
+
+/* Defensive track */
+.defensive .progress-track {
+  background: conic-gradient(#0a1323 0% var(--progress, 0%), transparent var(--progress, 0%) 100%);
+  mask: radial-gradient(transparent 65%, black 66%);
+  -webkit-mask: radial-gradient(transparent 65%, black 66%);
+  transform: rotate(-90deg);
+}
+
+/* General track */
+.general .progress-track {
+  background: conic-gradient(#e31837 0% var(--progress, 0%), transparent var(--progress, 0%) 100%);
+  mask: radial-gradient(transparent 65%, black 66%);
+  -webkit-mask: radial-gradient(transparent 65%, black 66%);
+  transform: rotate(-90deg);
+}
+
+.progress-percentage {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.offensive .progress-percentage {
+  color: #e31837; /* Red text */
+  text-shadow: 0 0 10px rgba(227, 24, 55, 0.2); /* Red glow */
+}
+
+.defensive .progress-percentage {
+  color: #0a1323; /* Navy text */
+  text-shadow: 0 0 10px rgba(10, 19, 35, 0.2); /* Navy glow */
+}
+
+.general .progress-percentage {
+  color: #e31837; /* Red text */
+  text-shadow: 0 0 10px rgba(227, 24, 55, 0.2); /* Red glow */
+}
+
+.progress-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: #555555; /* Medium dark gray text */
+  text-transform: capitalize;
+}
+
+/* Modules section */
+.modules-section {
+  background-color: #ffffff; /* White background */
+  border-radius: 8px;
+  margin-bottom: 30px;
+  overflow: hidden;
+  border: 1px solid #e1e1e1; /* Light border */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+}
+
+.section-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e1e1e1; /* Light border */
+  display: flex;
+  align-items: center;
+  background-color: #f9f9f9; /* Very light gray background */
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  color: #333333; /* Dark text */
+}
+
+.section-header svg,
+.section-header .header-icon {
+  margin-right: 10px;
+  color: #e31837; /* Red icon */
+}
+
+.modules-table {
+  width: 100%;
+}
+
+.table-header {
+  display: flex;
+  padding: 12px 20px;
+  background-color: #f5f5f5; /* Light gray background */
+  color: #555555; /* Medium dark gray text */
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 1px solid #e1e1e1; /* Light border */
+}
+
+.table-row {
+  display: flex;
+  padding: 15px 20px;
+  border-bottom: 1px solid #e1e1e1; /* Light border */
+  font-size: 14px;
+  align-items: center;
+  transition: background-color 0.2s, transform 0.2s;
+  color: #333333; /* Dark text */
+}
+
+.table-row:hover {
+  background-color: #f8f9fa; /* Light gray background */
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Subtle shadow on hover */
+}
+
+.col {
+  padding: 0 5px;
+}
+
+.col.name {
+  flex: 2;
+  display: flex;
+  align-items: center;
+}
+
+.col.name .module-icon {
+  margin-right: 10px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e31837; /* Red icon */
+}
+
+.col.name a {
+  color: #0a1323; /* Navy link color */
+  text-decoration: none;
+  transition: color 0.2s;
+  font-weight: 500;
+}
+
+.col.name a:hover {
+  color: #e31837; /* Red hover color */
+  text-decoration: underline;
+}
+
+.col.progress, .col.difficulty {
+  flex: 1;
+}
+
+.col.actions {
+  flex: 0 0 100px;
+  text-align: right;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge.fundamental {
+  background-color: rgba(10, 19, 35, 0.1); /* Navy with low opacity */
+  color: #0a1323; /* Navy text */
+}
+
+.badge.easy {
+  background-color: rgba(227, 24, 55, 0.1); /* Red with low opacity */
+  color: #e31837; /* Red text */
+}
+
+.badge.medium {
+  background-color: rgba(255, 193, 7, 0.15); /* Yellow with low opacity */
+  color: #e09800; /* Darker yellow text */
+}
+
+.badge.hard {
+  background-color: rgba(52, 58, 64, 0.15); /* Dark gray with low opacity */
+  color: #343a40; /* Dark gray text */
+}
+
+.start-btn {
+  background-color: #e31837; /* Red background */
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.start-btn:hover {
+  background-color: #c41230; /* Darker red on hover */
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(227, 24, 55, 0.3); /* Red shadow */
+}
+
+/* Side panels */
+.side-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.panel {
+  background-color: #ffffff; /* White background */
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #e1e1e1; /* Light border */
+  position: relative;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+}
+
+.panel h2 {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  color: #333333; /* Dark text */
+}
+
+.panel h2 svg,
+.panel h2 .icon {
+  margin-right: 10px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e31837; /* Red icon */
+}
+
+/* Weekly streak panel */
+.weekly-streak {
+  position: relative;
+}
+
+.weekly-streak .streak-dots {
+  display: flex;
+  margin: 10px 0;
+  gap: 8px;
+}
+
+.streak-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #f0f0f0; /* Light gray background */
+  position: relative;
+  border: 1px solid #e1e1e1; /* Very light border */
+}
+
+.streak-dot.earned {
+  background-color: #e31837; /* Red background */
+  border: none;
+}
+
+.streak-dot.active {
+  background-color: rgba(227, 24, 55, 0.3); /* Red with low opacity */
+  border: none;
+}
+
+.this-week {
+  color: #555555; /* Medium dark gray text */
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.streak-count {
+  display: flex;
+  align-items: baseline;
+}
+
+.big-count {
+  font-size: 60px;
+  font-weight: 700;
+  margin-right: 5px;
+  line-height: 1;
+  color: #e31837; /* Red text */
+}
+
+.streak-total {
+  color: #555555; /* Medium dark gray text */
+  font-size: 14px;
+}
+
+/* Referral panel */
+.panel p {
+  color: #555555; /* Medium dark gray text */
+  margin: 0 0 15px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.refer-btn, .start-referring-btn {
+  width: 100%;
+  background-color: #f8f9fa; /* Light gray background */
+  border: 1px solid #e1e1e1; /* Light border */
+  color: #333333; /* Dark text */
+  padding: 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.refer-btn:hover, .start-referring-btn:hover {
+  background-color: #f0f0f0; /* Slightly darker gray on hover */
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Subtle shadow on hover */
+}
+
+.subscribe-btn {
+  width: 100%;
+  background-color: rgba(227, 24, 55, 0.1); /* Red with low opacity */
+  border: 1px solid rgba(227, 24, 55, 0.3); /* Red border with low opacity */
+  color: #e31837; /* Red text */
+  padding: 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.subscribe-btn:hover {
+  background-color: rgba(227, 24, 55, 0.2); /* Slightly darker red background on hover */
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(227, 24, 55, 0.2); /* Red shadow */
+}
+
+.none-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100px;
+  color: #888888; /* Medium gray text */
+  font-size: 16px;
+}
+
+.none-status .emoji {
+  font-size: 24px;
+  margin-right: 10px;
+  opacity: 0.5;
+}
+
+/* Panels with decorative corners */
+.referral, .my-plan {
+  position: relative;
+  overflow: hidden;
+}
+
+.panel-decoration {
+  position: absolute;
+  right: -25px;
+  top: -25px;
+  width: 100px;
+  height: 100px;
+  background-color: rgba(227, 24, 55, 0.05); /* Red with low opacity */
+  border-radius: 20px;
+  transform: rotate(45deg);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Floating button styles removed - now handled by Layout.css */

@@ -1,0 +1,1025 @@
+import { execSync, spawn } from 'child_process';
+import { promises as fs } from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { config } from '../config/environment.js';
+
+/**
+ * Dynamic VM Provisioner Service
+ * Handles VirtualBox operations for any VM (OVA/OVF files)
+ * Supports: Import, Clone, Start, Stop, Delete, Network Configuration
+ */
+class VMProvisionerService {
+  constructor() {
+    this.vboxManagePath = config.vm.virtualboxPath;
+    this.ovaStoragePath = config.vm.ovaStoragePath;
+    this.vmInstancesPath = config.vm.vmInstancesPath;
+    this.portRanges = config.ports;
+    
+    // Track active VMs and port allocations
+    this.activeVMs = new Map();
+    this.allocatedPorts = new Set();
+  }
+
+  /**
+   * Initialize the provisioner service
+   * Check VirtualBox installation and create necessary directories
+   */
+  async initialize() {
+    try {
+      // Check VirtualBox installation
+      await this.checkVirtualBoxInstallation();
+      
+      // Create necessary directories
+      await this.ensureDirectories();
+      
+      // Load existing VM state
+      await this.loadActiveVMs();
+      
+      console.log('VM Provisioner Service initialized successfully');
+      return { status: 'success', message: 'Provisioner initialized' };
+    } catch (error) {
+      console.error('Failed to initialize VM Provisioner:', error);
+      throw new Error(`Provisioner initialization failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Import OVA/OVF file as template VM
+   * @param {string} ovaPath - Path to OVA/OVF file
+   * @param {Object} labConfig - Lab configuration object
+   * @returns {Promise<Object>} Import result with template VM ID
+   */
+  async importTemplate(ovaPath, labConfig) {
+    try {
+      const { name, vmConfig = {} } = labConfig;
+      const templateName = `${name}-Template`;
+      
+      // Verify OVA/OVF file exists
+      await this.verifyVMFile(ovaPath);
+      
+      // Check if template already exists
+      const existingTemplate = await this.findVMByName(templateName);
+      if (existingTemplate) {
+        console.log(`Template ${templateName} already exists`);
+        return {
+          success: true,
+          templateId: existingTemplate.uuid,
+          templateName,
+          message: 'Template already imported'
+        };
+      }
+
+      // Import OVA/OVF
+      console.log(`Importing ${ovaPath} as ${templateName}...`);
+      const importResult = await this.executeVBoxCommand([
+        'import', 
+        `"${ovaPath}"`,
+        '--vsys', '0',
+        '--vmname', `"${templateName}"`
+      ]);
+
+      // Get the imported VM UUID
+      const templateVM = await this.findVMByName(templateName);
+      if (!templateVM) {
+        throw new Error('Failed to find imported template VM');
+      }
+
+      // Configure template VM
+      await this.configureTemplateVM(templateVM.uuid, vmConfig);
+      
+      // Create clean state snapshot
+      await this.createSnapshot(templateVM.uuid, 'CleanState', 'Initial clean state for cloning');
+
+      console.log(`Template ${templateName} imported successfully`);
+      return {
+        success: true,
+        templateId: templateVM.uuid,
+        templateName,
+        message: 'Template imported and configured'
+      };
+    } catch (error) {
+      console.error('Template import failed:', error);
+      throw new Error(`Template import failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create VM instance from template for user session
+   * @param {string} templateId - Template VM UUID
+   * @param {string} sessionId - User session ID
+   * @param {Object} sessionConfig - Session-specific configuration
+   * @returns {Promise<Object>} Instance creation result
+   */
+  async createInstance(templateId, sessionId, sessionConfig = {}) {
+    try {
+      const instanceName = `Session-${sessionId}`;
+      const { userId, vmConfig = {} } = sessionConfig;
+
+      // Verify template exists
+      const template = await this.getVMInfo(templateId);
+      if (!template) {
+        throw new Error(`Template VM ${templateId} not found`);
+      }
+
+      // Create linked clone from template snapshot
+      console.log(`Creating instance ${instanceName} from template ${templateId}...`);
+      await this.executeVBoxCommand([
+        'clonevm',
+        templateId,
+        '--snapshot', 'CleanState',
+        '--name', `"${instanceName}"`,
+        '--options', 'link',
+        '--register'
+      ]);
+
+      // Get created instance info
+      const instance = await this.findVMByName(instanceName);
+      if (!instance) {
+        throw new Error('Failed to create VM instance');
+      }
+
+      // Configure instance-specific settings
+      await this.configureInstanceVM(instance.uuid, vmConfig, sessionId);
+
+      // Allocate network configuration (supports VPN if user has subnet)
+      const { useVPN = false, userSubnet = null } = sessionConfig;
+      const networkConfig = await this.allocateNetworkPorts(sessionId, { useVPN, userSubnet });
+      await this.configureNetworking(instance.uuid, networkConfig);
+
+      // Track active VM
+      this.activeVMs.set(sessionId, {
+        vmId: instance.uuid,
+        vmName: instanceName,
+        templateId,
+        sessionId,
+        userId,
+        status: 'created',
+        networkConfig,
+        createdAt: new Date()
+      });
+
+      console.log(`Instance ${instanceName} created successfully`);
+      return {
+        success: true,
+        instanceId: instance.uuid,
+        instanceName,
+        sessionId,
+        networkConfig,
+        status: 'created'
+      };
+    } catch (error) {
+      console.error('Instance creation failed:', error);
+      throw new Error(`Instance creation failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Start VM instance
+   * @param {string} sessionId - Session ID
+   * @returns {Promise<Object>} Start result with connection info
+   */
+  async startInstance(sessionId) {
+    try {
+      const vmInfo = this.activeVMs.get(sessionId);
+      if (!vmInfo) {
+        throw new Error(`No VM instance found for session ${sessionId}`);
+      }
+
+      const { vmId, vmName, networkConfig } = vmInfo;
+
+      console.log(`Starting VM instance ${vmName}...`);
+      
+      // Start VM in headless mode
+      await this.executeVBoxCommand([
+        'startvm',
+        vmId,
+        '--type', 'headless'
+      ]);
+
+      // Wait for VM to boot
+      await this.waitForVMBoot(vmId);
+
+      // Update VM status
+      vmInfo.status = 'running';
+      vmInfo.startedAt = new Date();
+      this.activeVMs.set(sessionId, vmInfo);
+
+      // Generate connection information
+      const connectionInfo = this.generateConnectionInfo(networkConfig);
+
+      console.log(`VM instance ${vmName} started successfully`);
+      return {
+        success: true,
+        sessionId,
+        vmId,
+        status: 'running',
+        connectionInfo,
+        startedAt: vmInfo.startedAt
+      };
+    } catch (error) {
+      console.error('VM start failed:', error);
+      
+      // Update status to failed
+      const vmInfo = this.activeVMs.get(sessionId);
+      if (vmInfo) {
+        vmInfo.status = 'failed';
+        vmInfo.error = error.message;
+        this.activeVMs.set(sessionId, vmInfo);
+      }
+      
+      throw new Error(`VM start failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Stop VM instance gracefully
+   * @param {string} sessionId - Session ID
+   * @returns {Promise<Object>} Stop result
+   */
+  async stopInstance(sessionId) {
+    try {
+      const vmInfo = this.activeVMs.get(sessionId);
+      if (!vmInfo) {
+        throw new Error(`No VM instance found for session ${sessionId}`);
+      }
+
+      const { vmId, vmName } = vmInfo;
+      console.log(`Stopping VM instance ${vmName}...`);
+
+      // Try graceful shutdown first
+      try {
+        await this.executeVBoxCommand([
+          'controlvm',
+          vmId,
+          'acpipowerbutton'
+        ]);
+        
+        // Wait for graceful shutdown (max 30 seconds)
+        await this.waitForVMShutdown(vmId, 30000);
+      } catch (gracefulError) {
+        console.warn('Graceful shutdown failed, forcing poweroff:', gracefulError.message);
+        
+        // Force poweroff if graceful shutdown fails
+        await this.executeVBoxCommand([
+          'controlvm',
+          vmId,
+          'poweroff'
+        ]);
+      }
+
+      // Update VM status
+      vmInfo.status = 'stopped';
+      vmInfo.stoppedAt = new Date();
+      this.activeVMs.set(sessionId, vmInfo);
+
+      console.log(`VM instance ${vmName} stopped successfully`);
+      return {
+        success: true,
+        sessionId,
+        vmId,
+        status: 'stopped',
+        stoppedAt: vmInfo.stoppedAt
+      };
+    } catch (error) {
+      console.error('VM stop failed:', error);
+      throw new Error(`VM stop failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete VM instance and cleanup
+   * @param {string} sessionId - Session ID
+   * @returns {Promise<Object>} Delete result
+   */
+  async deleteInstance(sessionId) {
+    try {
+      const vmInfo = this.activeVMs.get(sessionId);
+      if (!vmInfo) {
+        console.warn(`No VM instance found for session ${sessionId} - may already be deleted`);
+        return { success: true, message: 'Instance already deleted' };
+      }
+
+      const { vmId, vmName, networkConfig } = vmInfo;
+      console.log(`Deleting VM instance ${vmName}...`);
+
+      // Stop VM if running
+      const vmState = await this.getVMState(vmId);
+      if (['running', 'paused'].includes(vmState)) {
+        await this.stopInstance(sessionId);
+      }
+
+      // Unregister and delete VM
+      await this.executeVBoxCommand([
+        'unregistervm',
+        vmId,
+        '--delete'
+      ]);
+
+      // Release allocated ports
+      this.releaseNetworkPorts(networkConfig);
+
+      // Remove from active VMs
+      this.activeVMs.delete(sessionId);
+
+      console.log(`VM instance ${vmName} deleted successfully`);
+      return {
+        success: true,
+        sessionId,
+        vmId,
+        status: 'deleted'
+      };
+    } catch (error) {
+      console.error('VM deletion failed:', error);
+      
+      // Still remove from tracking even if deletion failed
+      this.activeVMs.delete(sessionId);
+      
+      throw new Error(`VM deletion failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get VM instance status and information
+   * @param {string} sessionId - Session ID
+   * @returns {Promise<Object>} VM status information
+   */
+  async getInstanceStatus(sessionId) {
+    try {
+      const vmInfo = this.activeVMs.get(sessionId);
+      if (!vmInfo) {
+        return { 
+          exists: false, 
+          sessionId,
+          message: 'VM instance not found' 
+        };
+      }
+
+      const { vmId, vmName, status, networkConfig } = vmInfo;
+      
+      // Get current VM state from VirtualBox
+      const currentState = await this.getVMState(vmId);
+      
+      // Update status if needed
+      if (currentState !== status) {
+        vmInfo.status = currentState;
+        this.activeVMs.set(sessionId, vmInfo);
+      }
+
+      const connectionInfo = this.generateConnectionInfo(networkConfig);
+
+      return {
+        exists: true,
+        sessionId,
+        vmId,
+        vmName,
+        status: currentState,
+        networkConfig,
+        connectionInfo,
+        createdAt: vmInfo.createdAt,
+        startedAt: vmInfo.startedAt,
+        stoppedAt: vmInfo.stoppedAt
+      };
+    } catch (error) {
+      console.error('Failed to get VM status:', error);
+      throw new Error(`Failed to get VM status: ${error.message}`);
+    }
+  }
+
+  /**
+   * List all active VM instances
+   * @returns {Promise<Array>} Array of active VM instances
+   */
+  async listActiveInstances() {
+    const instances = [];
+    
+    for (const [sessionId, vmInfo] of this.activeVMs.entries()) {
+      try {
+        const status = await this.getInstanceStatus(sessionId);
+        instances.push(status);
+      } catch (error) {
+        console.warn(`Failed to get status for session ${sessionId}:`, error.message);
+      }
+    }
+    
+    return instances;
+  }
+
+  // =============================================================================
+  // PRIVATE HELPER METHODS
+  // =============================================================================
+
+  /**
+   * Execute VBoxManage command
+   * @private
+   */
+  async executeVBoxCommand(args, options = {}) {
+    return new Promise((resolve, reject) => {
+      const command = `"${this.vboxManagePath}" ${args.join(' ')}`;
+      
+      try {
+        const result = execSync(command, {
+          encoding: 'utf8',
+          timeout: options.timeout || 60000,
+          maxBuffer: 1024 * 1024, // 1MB buffer
+          ...options
+        });
+        
+        resolve(result.trim());
+      } catch (error) {
+        reject(new Error(`VBoxManage command failed: ${error.message}\nCommand: ${command}`));
+      }
+    });
+  }
+
+  /**
+   * Check VirtualBox installation
+   * @private
+   */
+  async checkVirtualBoxInstallation() {
+    try {
+      const version = await this.executeVBoxCommand(['--version']);
+      console.log(`VirtualBox version: ${version}`);
+      return version;
+    } catch (error) {
+      throw new Error(`VirtualBox not found at ${this.vboxManagePath}. Please install VirtualBox and update the path in environment configuration.`);
+    }
+  }
+
+  /**
+   * Ensure required directories exist
+   * @private
+   */
+  async ensureDirectories() {
+    const dirs = [this.ovaStoragePath, this.vmInstancesPath];
+    
+    for (const dir of dirs) {
+      try {
+        await fs.mkdir(dir, { recursive: true });
+        console.log(`Ensured directory exists: ${dir}`);
+      } catch (error) {
+        throw new Error(`Failed to create directory ${dir}: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Verify VM file exists and is readable
+   * @private
+   */
+  async verifyVMFile(filePath) {
+    try {
+      const stats = await fs.stat(filePath);
+      if (!stats.isFile()) {
+        throw new Error(`${filePath} is not a file`);
+      }
+      
+      // Check file extension
+      const ext = path.extname(filePath).toLowerCase();
+      if (!['.ova', '.ovf'].includes(ext)) {
+        throw new Error(`Unsupported file type: ${ext}. Only .ova and .ovf files are supported.`);
+      }
+      
+      console.log(`Verified VM file: ${filePath} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
+      return true;
+    } catch (error) {
+      throw new Error(`VM file verification failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Find VM by name
+   * @private
+   */
+  async findVMByName(vmName) {
+    try {
+      const vms = await this.executeVBoxCommand(['list', 'vms']);
+      const vmLines = vms.split('\n');
+      
+      for (const line of vmLines) {
+        if (line.includes(`"${vmName}"`)) {
+          const match = line.match(/"([^"]+)"\s+\{([^}]+)\}/);
+          if (match) {
+            return {
+              name: match[1],
+              uuid: match[2]
+            };
+          }
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn('Error finding VM by name:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Get VM information
+   * @private
+   */
+  async getVMInfo(vmId) {
+    try {
+      const info = await this.executeVBoxCommand(['showvminfo', vmId, '--machinereadable']);
+      const vmInfo = {};
+      
+      info.split('\n').forEach(line => {
+        const [key, ...valueParts] = line.split('=');
+        if (key && valueParts.length > 0) {
+          vmInfo[key] = valueParts.join('=').replace(/"/g, '');
+        }
+      });
+      
+      return vmInfo;
+    } catch (error) {
+      console.warn(`Error getting VM info for ${vmId}:`, error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Get current VM state
+   * @private
+   */
+  async getVMState(vmId) {
+    try {
+      const info = await this.getVMInfo(vmId);
+      return info ? info.VMState.trim() : 'unknown';
+    } catch (error) {
+      console.warn(`Error getting VM state for ${vmId}:`, error.message);
+      return 'unknown';
+    }
+  }
+
+  /**
+   * Configure template VM settings
+   * @private
+   */
+  async configureTemplateVM(vmId, vmConfig = {}) {
+    const {
+      ram = config.defaults.vmRam,
+      cpu = config.defaults.vmCpu,
+      network = 'nat'
+    } = vmConfig;
+
+    try {
+      // Configure memory
+      await this.executeVBoxCommand(['modifyvm', vmId, '--memory', ram.toString()]);
+      
+      // Configure CPUs
+      await this.executeVBoxCommand(['modifyvm', vmId, '--cpus', cpu.toString()]);
+      
+      // Configure network
+      await this.executeVBoxCommand(['modifyvm', vmId, '--nic1', network]);
+      
+      // Disable audio (not needed for labs)
+      await this.executeVBoxCommand(['modifyvm', vmId, '--audio', 'none']);
+      
+      // Disable USB (security)
+      await this.executeVBoxCommand(['modifyvm', vmId, '--usb', 'off']);
+      
+      console.log(`Template VM ${vmId} configured successfully`);
+    } catch (error) {
+      throw new Error(`Template VM configuration failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Configure instance VM settings
+   * @private
+   */
+  async configureInstanceVM(vmId, vmConfig = {}, sessionId) {
+    try {
+      // Apply any instance-specific configurations
+      if (vmConfig.ram) {
+        await this.executeVBoxCommand(['modifyvm', vmId, '--memory', vmConfig.ram.toString()]);
+      }
+      
+      if (vmConfig.cpu) {
+        await this.executeVBoxCommand(['modifyvm', vmId, '--cpus', vmConfig.cpu.toString()]);
+      }
+
+      // Add session metadata as VM description
+      const description = `Lab Session: ${sessionId} | Created: ${new Date().toISOString()}`;
+      await this.executeVBoxCommand(['modifyvm', vmId, '--description', `"${description}"`]);
+      
+      console.log(`Instance VM ${vmId} configured for session ${sessionId}`);
+    } catch (error) {
+      throw new Error(`Instance VM configuration failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Allocate network configuration for session
+   * Supports NAT (development), VPN bridge, and HackTheBox-style internal networking
+   * @private
+   */
+  async allocateNetworkPorts(sessionId, options = {}) {
+    const { useVPN = false, userSubnet = null, useHackTheBoxStyle = true } = options;
+    
+    if (useHackTheBoxStyle || (useVPN && userSubnet)) {
+      // HackTheBox-style internal networking
+      const vmIP = this.getHackTheBoxStyleIP(sessionId);
+      
+      // Allocate management SSH port for backend flag injection (separate from user access)
+      const managementPort = this.findAvailablePort(30000, 35000);
+      if (managementPort) {
+        this.allocatedPorts.add(managementPort);
+      }
+      
+      return {
+        mode: 'hackthebox-internal',
+        sessionId,
+        vmIP,
+        subnet: '10.12.10.0/24',
+        netmask: '255.255.255.0',
+        gateway: '10.12.10.1',
+        dnsServers: ['8.8.8.8', '8.8.4.4'],
+        networkName: 'LabNetwork',
+        managementPort, // Backend management SSH port (localhost only)
+        services: {
+          ssh: { ip: vmIP, port: 22 },
+          web: { ip: vmIP, port: 80 },
+          https: { ip: vmIP, port: 443 },
+          ftp: { ip: vmIP, port: 21 },
+          mysql: { ip: vmIP, port: 3306 },
+          rdp: { ip: vmIP, port: 3389 },
+          smb: { ip: vmIP, port: 445 },
+          telnet: { ip: vmIP, port: 23 }
+        },
+        vpnRequired: true
+      };
+    } else {
+      // NAT mode with port forwarding (development fallback)
+      const sshPort = this.findAvailablePort(this.portRanges.sshStart, this.portRanges.sshEnd);
+      const webPort = this.findAvailablePort(this.portRanges.webStart, this.portRanges.webEnd);
+      
+      if (!sshPort || !webPort) {
+        throw new Error('No available ports for VM networking');
+      }
+      
+      this.allocatedPorts.add(sshPort);
+      this.allocatedPorts.add(webPort);
+      
+      return {
+        mode: 'nat',
+        sessionId,
+        sshPort,
+        webPort,
+        ipAddress: '127.0.0.1',
+        vpnRequired: false
+      };
+    }
+  }
+  
+  /**
+   * Generate HackTheBox-style internal IP for lab VM
+   * Uses deterministic IP generation based on sessionId
+   * Range: 10.12.10.10 - 10.12.10.200
+   * @private
+   */
+  getHackTheBoxStyleIP(sessionId) {
+    const hash = crypto.createHash('md5').update(sessionId).digest('hex');
+    const ipSuffix = (parseInt(hash.slice(0, 2), 16) % 190) + 10; // 10-199
+    
+    return `10.12.10.${ipSuffix}`;
+  }
+
+  /**
+   * Find available port in range
+   * @private
+   */
+  findAvailablePort(startPort, endPort) {
+    for (let port = startPort; port <= endPort; port++) {
+      if (!this.allocatedPorts.has(port)) {
+        return port;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Release network resources
+   * @private
+   */
+  releaseNetworkPorts(networkConfig) {
+    if (networkConfig && networkConfig.mode === 'nat') {
+      // Only release ports for NAT mode
+      this.allocatedPorts.delete(networkConfig.sshPort);
+      this.allocatedPorts.delete(networkConfig.webPort);
+      console.log(`Released ports: SSH=${networkConfig.sshPort}, Web=${networkConfig.webPort}`);
+    } else if (networkConfig && networkConfig.mode === 'bridge') {
+      // For bridge mode, log the IP release (no ports to release)
+      console.log(`Released VPN subnet IP: ${networkConfig.vmIP}`);
+    }
+  }
+
+  /**
+   * Configure VM networking - supports NAT, VPN bridge, and HackTheBox-style internal networking
+   * @private
+   */
+  async configureNetworking(vmId, networkConfig) {
+    try {
+      if (!networkConfig) throw new Error('Network configuration is required');
+      
+      if (networkConfig.mode === 'hackthebox-internal') {
+        // HackTheBox-style internal networking - use VirtualBox internal network
+        const { vmIP, networkName, managementPort } = networkConfig;
+        
+        console.log(`Configuring HackTheBox-style internal network for VM ${vmId} with IP ${vmIP}`);
+        
+        // NIC 1: Internal network for user VPN access (primary)
+        await this.executeVBoxCommand(['modifyvm', vmId, '--nic1', 'hostonly']);
+        await this.executeVBoxCommand(['modifyvm', vmId, '--hostonlyadapter1', 'vboxnet1']);
+        await this.executeVBoxCommand(['modifyvm', vmId, '--nicpromisc1', 'allow-all']);
+        
+        // Set MAC address for static IP assignment
+        const macSuffix = this.generateMacFromIP(vmIP);
+        await this.executeVBoxCommand(['modifyvm', vmId, '--macaddress1', `080027${macSuffix}`]);
+        
+        // NIC 2: NAT for backend management access (flag injection)
+        await this.executeVBoxCommand(['modifyvm', vmId, '--nic2', 'nat']);
+        
+        // Configure SSH port forwarding on NIC 2 for backend flag injection
+        const managementSSHPort = managementPort || this.findAvailablePort(30000, 35000);
+        if (managementSSHPort) {
+          this.allocatedPorts.add(managementSSHPort);
+          await this.executeVBoxCommand([
+            'modifyvm', vmId,
+            '--natpf2', `management-ssh,tcp,,${managementSSHPort},,22`
+          ]);
+          console.log(`Management SSH port forwarding configured: localhost:${managementSSHPort} -> VM:22`);
+        }
+        
+        console.log(`HackTheBox-style dual network configured for VM ${vmId}: User=${vmIP}, Management=localhost:${managementSSHPort}`);
+        
+      } else if (networkConfig.mode === 'bridge') {
+        // VPN Bridge mode - configure bridged networking
+        const { vmIP, subnet, netmask, gateway } = networkConfig;
+        
+        console.log(`Configuring bridged network for VM ${vmId} with IP ${vmIP}`);
+        
+        // Set first NIC to bridged mode
+        await this.executeVBoxCommand(['modifyvm', vmId, '--nic1', 'bridged']);
+        
+        // Configure bridge adapter (use default host adapter)
+        // Note: In production, this should be configurable per environment
+        await this.executeVBoxCommand(['modifyvm', vmId, '--bridgeadapter1', 'Default']);
+        
+        // Enable promiscuous mode for VPN bridge
+        await this.executeVBoxCommand(['modifyvm', vmId, '--nicpromisc1', 'allow-all']);
+        
+        console.log(`VPN Bridge network configured for VM ${vmId}: IP=${vmIP}, Subnet=${subnet}`);
+        
+      } else {
+        // NAT mode with port forwarding (development fallback)
+        const { sshPort, webPort } = networkConfig;
+        
+        // Configure SSH port forwarding
+        await this.executeVBoxCommand([
+          'modifyvm', vmId,
+          '--natpf1', `ssh,tcp,,${sshPort},,22`
+        ]);
+        
+        // Configure web port forwarding
+        await this.executeVBoxCommand([
+          'modifyvm', vmId,
+          '--natpf1', `web,tcp,,${webPort},,80`
+        ]);
+        
+        console.log(`NAT network configured for VM ${vmId}: SSH=${sshPort}, Web=${webPort}`);
+      }
+    } catch (error) {
+      throw new Error(`Network configuration failed: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Generate MAC address suffix from IP for consistent networking
+   * @private
+   */
+  generateMacFromIP(vmIP) {
+    const ipParts = vmIP.split('.');
+    const lastTwoOctets = ipParts.slice(-2);
+    return lastTwoOctets.map(octet => 
+      parseInt(octet).toString(16).padStart(2, '0')
+    ).join('') + '00';
+  }
+
+  /**
+   * Generate connection information for users
+   * @private
+   */
+  generateConnectionInfo(networkConfig) {
+    if (!networkConfig) return null;
+    
+    if (networkConfig.mode === 'hackthebox-internal') {
+      // HackTheBox-style internal networking - VPN required
+      const { vmIP, services } = networkConfig;
+      
+      return {
+        mode: 'hackthebox-internal',
+        ipAddress: vmIP,
+        host: vmIP,
+        sshPort: 22,
+        webPort: 80,
+        webPorts: [80, 443, 8080, 8443],
+        username: 'tiago',
+        password: null,
+        ssh: {
+          host: vmIP,
+          port: 22,
+          command: `ssh tiago@${vmIP}`,
+          description: 'SSH access to the lab VM (VPN required)'
+        },
+        web: {
+          url: `http://${vmIP}`,
+          description: 'Web interface access via VPN'
+        },
+        services: {
+          ssh: { ip: vmIP, port: 22 },
+          web: { ip: vmIP, port: 80 },
+          https: { ip: vmIP, port: 443 },
+          ftp: { ip: vmIP, port: 21 },
+          mysql: { ip: vmIP, port: 3306 },
+          rdp: { ip: vmIP, port: 3389 },
+          smb: { ip: vmIP, port: 445 },
+          telnet: { ip: vmIP, port: 23 }
+        },
+        vpnRequired: true,
+        directAccess: true,
+        accessInstructions: [
+          '1. Download and install your VPN configuration file',
+          '2. Connect to the VPN using OpenVPN client',
+          `3. Access the lab VM directly at ${vmIP}`,
+          '4. Use standard ports (SSH: 22, Web: 80, etc.)'
+        ]
+      };
+      
+    } else if (networkConfig.mode === 'bridge') {
+      // VPN Bridge mode - direct IP access
+      const { vmIP, services } = networkConfig;
+      
+      return {
+        mode: 'bridge',
+        ssh: {
+          host: services.ssh.ip,
+          port: services.ssh.port,
+          command: `ssh user@${services.ssh.ip}`,
+          description: 'SSH access to the lab VM via VPN'
+        },
+        web: {
+          url: `http://${services.web.ip}`,
+          description: 'Web interface access via VPN'
+        },
+        ftp: {
+          host: services.ftp.ip,
+          port: services.ftp.port,
+          description: 'FTP access via VPN'
+        },
+        mysql: {
+          host: services.mysql.ip,
+          port: services.mysql.port,
+          description: 'MySQL database access via VPN'
+        },
+        general: {
+          vmIP,
+          directAccess: true,
+          vpnRequired: true,
+          services: services
+        }
+      };
+      
+    } else {
+      // NAT mode with port forwarding (development fallback)
+      const { ipAddress, sshPort, webPort } = networkConfig;
+      
+      return {
+        mode: 'nat',
+        host: ipAddress,
+        ipAddress: ipAddress,
+        sshPort: sshPort,
+        webPort: webPort,
+        webPorts: [webPort],
+        username: 'tiago',
+        password: null,
+        ssh: {
+          host: ipAddress,
+          port: sshPort,
+          command: `ssh tiago@${ipAddress} -p ${sshPort}`,
+          description: 'SSH access to the lab VM'
+        },
+        web: {
+          url: `http://${ipAddress}:${webPort}`,
+          description: 'Web interface access (if available)'
+        },
+        vpnRequired: false,
+        directAccess: false
+      };
+    }
+  }
+
+  /**
+   * Create VM snapshot
+   * @private
+   */
+  async createSnapshot(vmId, snapshotName, description = '') {
+    try {
+      await this.executeVBoxCommand([
+        'snapshot', vmId, 'take', `"${snapshotName}"`,
+        '--description', `"${description}"`
+      ]);
+      console.log(`Snapshot ${snapshotName} created for VM ${vmId}`);
+    } catch (error) {
+      throw new Error(`Snapshot creation failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Wait for VM to boot (check if VM is running)
+   * @private
+   */
+  async waitForVMBoot(vmId, maxWaitMs = 30000) {
+    const startTime = Date.now();
+    const checkInterval = 2000; // Check every 2 seconds
+    
+    console.log(`Waiting for VM ${vmId} to boot...`);
+    
+    while (Date.now() - startTime < maxWaitMs) {
+      try {
+        const state = await this.getVMState(vmId);
+        
+        if (state === 'running') {
+          console.log(`✅ VM ${vmId} is running - boot successful!`);
+          return true;
+        }
+        
+        console.log(`VM ${vmId} state: ${state}`);
+        
+        if (state === 'starting') {
+          console.log(`VM ${vmId} is starting...`);
+        }
+      } catch (error) {
+        console.warn('Error checking VM boot status:', error.message);
+      }
+      
+      await this.sleep(checkInterval);
+    }
+    
+    // Final check - if VM is running, consider it successful
+    const finalState = await this.getVMState(vmId);
+    if (finalState === 'running') {
+      console.log(`VM ${vmId} is running - boot completed after timeout period`);
+      return true;
+    }
+    
+    throw new Error(`VM boot failed: VM ${vmId} state is ${finalState} after ${maxWaitMs/1000} seconds`);
+  }
+
+  /**
+   * Wait for VM to shutdown
+   * @private
+   */
+  async waitForVMShutdown(vmId, maxWaitMs = 30000) {
+    const startTime = Date.now();
+    const checkInterval = 2000; // Check every 2 seconds
+    
+    while (Date.now() - startTime < maxWaitMs) {
+      try {
+        const state = await this.getVMState(vmId);
+        if (state === 'poweroff') {
+          return true;
+        }
+      } catch (error) {
+        // VM might be deleted/unregistered, which means it's stopped
+        return true;
+      }
+      
+      await this.sleep(checkInterval);
+    }
+    
+    throw new Error(`VM shutdown timeout: VM ${vmId} did not stop within ${maxWaitMs/1000} seconds`);
+  }
+
+  /**
+   * Load active VMs from previous session (persistence)
+   * @private
+   */
+  async loadActiveVMs() {
+    // This could load from a file or database in the future
+    // For now, start with empty state
+    console.log('Active VM state loaded');
+  }
+
+  /**
+   * Sleep utility
+   * @private
+   */
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+// Export singleton instance
+export default new VMProvisionerService();

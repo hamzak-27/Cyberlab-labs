@@ -1,0 +1,401 @@
+/* Modules.css - Main styling for the modules page */
+
+/* Modern container utilities for the new design */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1200px;
+}
+
+/* Line clamp utilities for text truncation */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Custom gradient text for the hero title */
+.bg-clip-text {
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.text-transparent {
+  color: transparent;
+}
+
+/* Additional utilities for smooth animations */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+.group:hover .group-hover\:scale-105 {
+  transform: scale(1.05);
+}
+
+.group:hover .group-hover\:bg-primary\/90 {
+  background-color: hsl(var(--primary) / 0.9);
+}
+
+.group:hover .group-hover\:text-primary {
+  color: hsl(var(--primary));
+}
+
+/* Legacy styles for the old modules page */
+.modules-container {
+  padding: 2rem;
+  background-color: #ffffff; /* White background */
+  color: #333333; /* Dark text for better readability on white */
+}
+
+/* Modules header styling */
+.modules-header {
+  margin-bottom: 2rem;
+}
+
+.modules-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  letter-spacing: 1px;
+  color: #e31837; /* Red heading */
+}
+
+/* Breadcrumbs styles moved to Layout.css */
+
+/* Search and filter bar */
+.modules-search-filter {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  align-items: center;
+}
+
+.search-bar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background-color: #f8f9fa; /* Light gray background */
+  border: 1px solid #e1e1e1; /* Light border */
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  transition: border-color 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+}
+
+.search-bar:focus-within {
+  border-color: #e31837; /* Red border on focus */
+}
+
+.search-bar svg {
+  color: #e31837; /* Red icon */
+  margin-right: 0.75rem;
+}
+
+.search-bar input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #333333; /* Dark text */
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.search-bar input::placeholder {
+  color: #a0a0a0; /* Medium gray placeholder */
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #e31837; /* Red background */
+  border: none;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  color: #ffffff; /* White text */
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(227, 24, 55, 0.2); /* Subtle red shadow */
+}
+
+.filter-btn:hover {
+  background-color: #c41230; /* Darker red on hover */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(227, 24, 55, 0.3); /* Stronger shadow on hover */
+}
+
+.filter-btn svg {
+  color: #ffffff; /* White icon */
+}
+
+/* Filters panel */
+.filters-panel {
+  background-color: #f8f9fa; /* Light gray background */
+  border: 1px solid #e1e1e1; /* Light border */
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  animation: fadeIn 0.3s ease;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.filters-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid rgba(227, 24, 55, 0.1); /* Subtle red underline */
+  padding-bottom: 0.8rem;
+}
+
+.filters-header h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #e31837; /* Red heading */
+}
+
+.clear-btn {
+  background: none;
+  border: none;
+  color: #e31837; /* Red text */
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.clear-btn:hover {
+  color: #c41230; /* Darker red on hover */
+  text-decoration: underline;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.filter-group label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #555555; /* Darker text for better contrast on white */
+  position: relative;
+  padding-left: 12px; /* Space for the accent line */
+}
+
+.filter-group label:before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 14px;
+  background-color: #e31837; /* Red accent line */
+  border-radius: 2px;
+}
+
+.filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.filter-options button {
+  background-color: #f0f0f0; /* Light gray background */
+  border: 1px solid #e1e1e1; /* Light border */
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  color: #555555; /* Dark gray text */
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-options button:hover {
+  background-color: #e6e6e6; /* Slightly darker gray on hover */
+  border-color: #d0d0d0;
+}
+
+.filter-options button.active {
+  background-color: rgba(227, 24, 55, 0.1); /* Very light red background */
+  border-color: #e31837; /* Red border */
+  color: #e31837; /* Red text */
+  font-weight: 500;
+}
+
+.selected-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.filter-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: rgba(227, 24, 55, 0.1); /* Very light red background */
+  border: 1px solid rgba(227, 24, 55, 0.2); /* Subtle red border */
+  border-radius: 20px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  color: #e31837; /* Red text */
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+}
+
+.filter-tag button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #e31837; /* Red X icon */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: bold;
+}
+
+.filter-tag button:hover {
+  color: #c41230; /* Darker red on hover */
+  transform: scale(1.2);
+}
+
+/* Results count */
+.results-count {
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  color: #555555; /* Darker text */
+  background-color: #f8f9fa; /* Very light gray background */
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #e1e1e1; /* Light border */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03); /* Very subtle shadow */
+  position: relative;
+  padding-left: 1.25rem; /* Extra padding for the accent */
+}
+
+.results-count::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: #e31837; /* Red accent line */
+  border-radius: 4px 0 0 4px;
+}
+
+.results-count strong {
+  color: #e31837; /* Red text for numbers */
+  font-weight: 600;
+}
+
+/* Modules grid */
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.no-results {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem 1rem;
+  background-color: #f8f9fa; /* Light gray background */
+  border-radius: 8px;
+  border: 1px solid #e1e1e1; /* Light border */
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+}
+
+.no-results p {
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+  color: #555555; /* Darker text */
+}
+
+.reset-btn {
+  background-color: #e31837; /* Red background */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(227, 24, 55, 0.2); /* Subtle shadow */
+}
+
+.reset-btn:hover {
+  background-color: #c41230; /* Darker red on hover */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(227, 24, 55, 0.3); /* Stronger shadow on hover */
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .modules-container {
+    padding: 1.5rem;
+  }
+  
+  .modules-search-filter {
+    flex-direction: column;
+  }
+  
+  .search-bar {
+    width: 100%;
+  }
+  
+  .filter-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .filters-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .modules-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .modules-container {
+    padding: 1rem;
+  }
+  
+  .modules-header h1 {
+    font-size: 1.5rem;
+  }
+}

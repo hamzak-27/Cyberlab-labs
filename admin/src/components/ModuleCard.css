@@ -1,0 +1,322 @@
+/* ModuleCard.css - Styling for the reusable module card component */
+
+.module-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e1e1e1;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+}
+
+.module-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(227, 24, 55, 0.1);
+  border-color: rgba(227, 24, 55, 0.3);
+}
+
+/* Module image section */
+.module-image {
+  position: relative;
+  height: 160px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.module-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), rgba(227, 24, 55, 0.5));
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding: 1rem;
+}
+
+/* Difficulty badge */
+.module-difficulty {
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.badge-fundamental {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #0a1323; /* Navy text */
+  border: 1px solid rgba(10, 19, 35, 0.2);
+}
+
+.badge-easy {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #e31837; /* Red text */
+  border: 1px solid rgba(227, 24, 55, 0.2);
+}
+
+.badge-medium {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #e09800; /* Orange text */
+  border: 1px solid rgba(224, 152, 0, 0.2);
+}
+
+.badge-hard {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #343a40; /* Dark gray text */
+  border: 1px solid rgba(52, 58, 64, 0.2);
+}
+
+/* Module content section */
+.module-content {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 1rem;
+}
+
+.module-category {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #666666; /* Medium gray text */
+}
+
+.category-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.category-icon.offensive {
+  color: #e31837; /* Red icon */
+}
+
+.category-icon.defensive {
+  color: #0a1323; /* Navy icon */
+}
+
+.category-icon.general {
+  color: #e31837; /* Red icon */
+}
+
+.module-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0;
+  color: #222222; /* Nearly black text */
+  position: relative;
+}
+
+.module-title::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 40px;
+  height: 3px;
+  background-color: #e31837; /* Red underline accent */
+  border-radius: 2px;
+  opacity: 0.7;
+}
+
+.module-description {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #666666; /* Medium gray text */
+  margin: 0;
+  margin-top: 8px; /* Add space for title underline */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2; /* Standard property for compatibility */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Module metadata */
+.module-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.module-time {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #666666; /* Medium gray text */
+  font-size: 0.85rem;
+}
+
+.time-icon {
+  color: #e31837; /* Red icon */
+  opacity: 0.8;
+}
+
+.module-tags {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tag {
+  background-color: #f8f9fa; /* Light gray background */
+  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  color: #666666; /* Medium gray text */
+  border: 1px solid #e1e1e1; /* Light border */
+  transition: all 0.2s ease;
+}
+
+.tag:hover {
+  background-color: #f0f0f0;
+  color: #e31837; /* Red text on hover */
+  border-color: rgba(227, 24, 55, 0.3); /* Red border with low opacity */
+}
+
+.tag-more {
+  background-color: #f5f5f5; /* Light gray background */
+  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  color: #e31837; /* Red text */
+  border: 1px solid rgba(227, 24, 55, 0.2); /* Red border with low opacity */
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.tag-more:hover {
+  background-color: rgba(227, 24, 55, 0.1); /* Light red background on hover */
+  border-color: rgba(227, 24, 55, 0.4); /* Darker red border on hover */
+}
+
+/* Progress bar */
+.module-progress {
+  margin-top: auto;
+  padding-top: 0.75rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: #f0f0f0; /* Light gray background */
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05); /* Inset shadow for depth */
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #e31837; /* Red progress fill */
+  border-radius: 10px;
+  transition: width 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 0 5px rgba(227, 24, 55, 0.4); /* Subtle glow effect */
+}
+
+.progress-text {
+  font-size: 0.8rem;
+  color: #666666; /* Medium gray text */
+  display: flex;
+  justify-content: space-between;
+}
+
+.progress-text span:last-child {
+  color: #e31837; /* Red text for percentage */
+  font-weight: 500;
+}
+
+/* Module actions */
+.module-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.start-btn {
+  flex: 1;
+  background-color: #e31837; /* Red background */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.8rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 5px rgba(227, 24, 55, 0.2); /* Subtle shadow */
+  letter-spacing: 0.5px;
+}
+
+.start-btn:hover {
+  background-color: #c41230; /* Darker red on hover */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(227, 24, 55, 0.3); /* Stronger shadow on hover */
+}
+
+.favorite-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f9fa; /* Light gray background */
+  border: 1px solid #e1e1e1; /* Light border */
+  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #888888; /* Medium gray icon */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+}
+
+.favorite-btn:hover {
+  background-color: #f0f0f0; /* Slightly darker gray on hover */
+  color: #e31837; /* Red icon on hover */
+  border-color: rgba(227, 24, 55, 0.3); /* Red border with low opacity */
+  transform: translateY(-2px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1); /* Stronger shadow on hover */
+}
+
+.favorite-btn.active {
+  color: #e31837; /* Red icon when active */
+  background-color: rgba(227, 24, 55, 0.05); /* Very light red background when active */
+  border-color: rgba(227, 24, 55, 0.3); /* Red border with low opacity when active */
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .module-content {
+    padding: 1.25rem;
+  }
+  
+  .module-image {
+    height: 140px;
+  }
+  
+  .module-title {
+    font-size: 1.1rem;
+  }
+  
+  .module-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .favorite-btn {
+    width: 100%;
+    height: 40px;
+  }
+}

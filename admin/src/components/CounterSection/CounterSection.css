@@ -1,0 +1,98 @@
+.counter-section {
+  width: 100%;
+  background-color: #030E14;
+  padding: 100px 0 50px 0;
+  display: flex;
+  justify-content: center;
+}
+
+.counter-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 25px;
+  width: 95%;
+  max-width: 1300px;
+  /* padding: 10px 0; */
+  background: none;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.counter-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  color: #fff;
+  background: transparent;
+  border-radius: 10px;
+  border: 1px solid rgba(197,197,197,0.13);
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04);
+  padding: 48px 0 48px 50px;
+  transition: box-shadow 0.2s;
+}
+
+.counter-card:hover {
+  box-shadow: 0 4px 32px 0 rgba(0,0,0,0.10);
+}
+
+.counter-value {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  font-family: 'Inter Display', sans-serif;
+  font-weight: 500;
+  font-size: 48px;
+  line-height: 1.2em;
+  letter-spacing: -1.7px;
+  color: #fff;
+  width: 100%;
+}
+
+.counter-number {
+  font-variant-numeric: tabular-nums;
+}
+
+.counter-suffix {
+  font-size: 48px;
+  margin-left: 4px;
+  color: #fff;
+}
+
+.counter-label {
+  margin-top: 8px;
+  font-size: 16px;
+  color: #aab1ad;
+  font-weight: 400;
+  color: #aab1ad;
+  text-align: left;
+  font-family: 'Inter', sans-serif;
+}
+
+@media (max-width: 900px) {
+  .counter-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+  .counter-card {
+    padding: 32px 0 24px 24px;
+  }
+}
+
+@media (max-width: 600px) {
+  .counter-container {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px 0;
+  }
+  .counter-card {
+    padding: 24px 0 16px 16px;
+  }
+  .counter-value {
+    font-size: 32px;
+  }
+  .counter-label {
+    font-size: 15px;
+  }
+}

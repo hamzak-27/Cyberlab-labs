@@ -1,0 +1,373 @@
+.benefits-section {
+  padding: 80px 0;
+  background-color: #030E14;
+  position: relative;
+  overflow: hidden;
+}
+
+.benefits-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 40px;
+  /* display: flex; */
+  /* grid-template-columns: 1fr 400px 1fr; */
+  display: grid;
+  grid-template-columns: 1fr 400px 1fr;
+  gap: 80px;
+  align-items: start;
+}
+
+/* Title Styles */
+.benefits-title-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.benefits-title-content {
+  will-change: transform;
+  opacity: 1;
+  transform: translateX(0);
+  transition: all 0.6s ease;
+}
+
+.benefits-title-container {
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  transform: none;
+}
+
+.benefits-title {
+  color: rgb(255, 255, 255);
+  font-size: 3rem;
+  font-weight: 500;
+  line-height: 58px;
+  margin: 0;
+  text-align: left;
+  width: 450px;
+  letter-spacing: -0.03em;
+  /* max-width: 400px; */
+}
+
+/* Image Styles */
+.benefits-image {
+  position: relative;
+  will-change: transform;
+  opacity: 1;
+  transform: translateY(0);
+  transition: all 0.6s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 400px;
+  height: 400px;
+}
+
+/* .benefits-blur-1,
+.benefits-blur-2 {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120%;
+  height: 120%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.benefits-blur-2 {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(0, 255, 255, 0.1) 0%, transparent 70%);
+} */
+
+.benefits-shape-outer,
+.benefits-shape-inner {
+  position: relative;
+  z-index: 2;
+}
+
+.benefits-shape-outer {
+  width: 506px;
+  height: 506px;
+  left: 20%;
+}
+
+.benefits-shape-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 300px;
+  height: 300px;
+}
+
+.benefits-image-wrapper {
+  position: absolute;
+  border-radius: inherit;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.benefits-main-image,
+.benefits-inner-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-position: center;
+  object-fit: cover;
+}
+
+/* Benefits List Styles */
+.benefits-list {
+  will-change: transform;
+  opacity: 1;
+  transform: translateX(0);
+  transition: all 0.6s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  justify-self: start;
+}
+
+.benefit-item-container {
+  width: 100%;
+}
+
+.benefit-item {
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.2);
+  border-left: 0px;
+  border-right: 0px;
+  border-style: solid;
+  border-top: 0px;
+  padding: 0px 0px 30px 0px;
+  margin-bottom: 30px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.benefit-item.last-item {
+  border-bottom: 0px;
+  padding: 0px;
+  margin-bottom: 0px;
+}
+
+.benefit-title-container,
+.benefit-description-container {
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  transform: none;
+}
+
+.benefit-title {
+  color: rgb(255, 255, 255);
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 34px;
+  margin: 0;
+  text-align: left;
+}
+
+.benefit-description {
+  color: rgb(170, 177, 173);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+  margin: 0;
+  text-align: left;
+  max-width: 320px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .benefits-container {
+    grid-template-columns: 1fr 350px 1fr;
+    gap: 60px;
+    padding: 0 30px;
+  }
+  
+  .benefits-title {
+    font-size: 2.5rem;
+  }
+  
+  .benefits-image {
+    width: 350px;
+    height: 350px;
+  }
+  
+  .benefits-shape-outer {
+    width: 350px;
+    height: 350px;
+  }
+  
+  .benefits-shape-inner {
+    width: 210px;
+    height: 210px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .benefits-container {
+    grid-template-columns: 1fr;
+    text-align: center;
+    gap: 40px;
+    justify-items: center;
+  }
+  
+  .benefits-title {
+    text-align: center;
+    font-size: 2.5rem;
+    max-width: none;
+  }
+  
+  .benefits-image {
+    width: 300px;
+    height: 300px;
+  }
+  
+  .benefits-shape-outer {
+    width: 300px;
+    height: 300px;
+  }
+  
+  .benefits-shape-inner {
+    width: 180px;
+    height: 180px;
+  }
+  
+  .benefits-list {
+    justify-self: center;
+    max-width: 500px;
+  }
+}
+
+@media (max-width: 768px) {
+  .benefits-section {
+    padding: 60px 0;
+  }
+  
+  .benefits-container {
+    padding: 0 20px;
+    gap: 30px;
+  }
+  
+  .benefits-title {
+    font-size: 2rem;
+  }
+  
+  .benefits-image {
+    width: 250px;
+    height: 250px;
+  }
+  
+  .benefits-shape-outer {
+    width: 250px;
+    height: 250px;
+  }
+  
+  .benefits-shape-inner {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .benefit-item {
+    padding: 0px 0px 25px 0px;
+    margin-bottom: 25px;
+  }
+  
+  .benefit-title {
+    font-size: 1.3rem;
+    text-align: center;
+  }
+  
+  .benefit-description {
+    font-size: 0.95rem;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .benefits-title {
+    font-size: 1.75rem;
+  }
+  
+  .benefits-image {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .benefits-shape-outer {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .benefits-shape-inner {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .benefit-title {
+    font-size: 1.2rem;
+  }
+  
+  .benefit-description {
+    font-size: 0.9rem;
+  }
+}
+
+/* Animation on scroll */
+@media (prefers-reduced-motion: no-preference) {
+  .benefits-title-content {
+    opacity: 0;
+    transform: translateX(-60px);
+    animation: slideInLeft 0.8s ease forwards;
+  }
+  
+  .benefits-image {
+    opacity: 0;
+    transform: translateY(60px);
+    animation: slideInUp 0.8s ease 0.2s forwards;
+  }
+  
+  .benefits-list {
+    opacity: 0;
+    transform: translateX(60px);
+    animation: slideInRight 0.8s ease 0.4s forwards;
+  }
+}
+
+@keyframes slideInLeft {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

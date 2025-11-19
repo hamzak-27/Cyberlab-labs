@@ -1,0 +1,450 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import cookieParser from 'cookie-parser';
+import dotenv from 'dotenv';
+import { connectDB } from './src/config/database.js';
+import { logger } from './src/utils/logger.js';
+import { initializeRateLimit, globalRateLimit } from './src/middleware/rateLimit.js';
+import websocketService from './src/services/websocket.service.js';
+import vpnMonitor from './src/services/vpn-monitor.service.js';
+
+// Import routes
+import sessionRoutes from './src/routes/sessionRoutes.js';
+import labRoutes from './src/routes/labRoutes.js';
+import statsRoutes from './src/routes/statsRoutes.js';
+import vpnRoutes from './src/routes/vpnRoutes.js';
+import vpnMonitorRoutes from './src/routes/vpn-monitor.routes.js';
+import userProfileRoutes from './src/routes/user-profile.routes.js';
+import adminRoutes from './src/routes/adminRoutes.js';
+
+// Load environment variables
+dotenv.config();
+
+// Create Express app
+const app = express();
+const PORT = process.env.PORT || 5001;
+
+// Trust proxy for correct IP detection
+app.set('trust proxy', 1);
+
+// Security middleware
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'"],
+            imgSrc: ["'self'", "data:", "https:"],
+        },
+    },
+}));
+
+// CORS configuration
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, etc.)
+        if (!origin) return callback(null, true);
+        
+        // In development, allow all origins
+        if (process.env.NODE_ENV === 'development') {
+            return callback(null, true);
+        }
+        
+        // In production, check against allowed origins
+        const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',');
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        
+        return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+    maxAge: 86400 // 24 hours
+};
+
+app.use(cors(corsOptions));
+
+// Compression middleware
+app.use(compression());
+
+// Body parsing middleware
+app.use(express.json({ 
+    limit: '10mb',
+    strict: true 
+}));
+app.use(express.urlencoded({ 
+    extended: true, 
+    limit: '10mb' 
+}));
+
+// Cookie parsing middleware (for frontend-team integration)
+app.use(cookieParser());
+
+// Request logging middleware
+app.use((req, res, next) => {
+    const startTime = Date.now();
+    
+    res.on('finish', () => {
+        const duration = Date.now() - startTime;
+        const logData = {
+            method: req.method,
+            url: req.url,
+            status: res.statusCode,
+            duration: `${duration}ms`,
+            ip: req.ip,
+            userAgent: req.get('User-Agent'),
+            userId: req.user?.id
+        };
+
+        if (res.statusCode >= 400) {
+            logger.error('HTTP Error', logData);
+        } else {
+            logger.info('HTTP Request', logData);
+        }
+    });
+
+    next();
+});
+
+// Global rate limiting
+app.use('/api', globalRateLimit);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        service: 'cybersecurity-labs-backend',
+        version: process.env.npm_package_version || '1.0.0',
+        environment: process.env.NODE_ENV || 'development',
+        uptime: process.uptime()
+    });
+});
+
+// API status endpoint
+app.get('/api/status', (req, res) => {
+    res.json({
+        success: true,
+        service: 'Cybersecurity Labs Backend API',
+        version: '1.0.0',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
+    });
+});
+
+// Mount API routes
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/labs', labRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/vpn', vpnRoutes);
+app.use('/api/vpn-monitor', vpnMonitorRoutes);
+app.use('/api/profile', userProfileRoutes);
+app.use('/api/admin', adminRoutes); // Admin routes for file upload
+app.use('/api/auth', labRoutes);
+
+// API documentation endpoint (placeholder)
+app.get('/api/docs', (req, res) => {
+    res.json({
+        success: true,
+        message: 'API Documentation',
+        endpoints: {
+            sessions: {
+                'POST /api/sessions/start': 'Start a new lab session',
+                'GET /api/sessions/active': 'Get user active sessions',
+                'GET /api/sessions/:sessionId': 'Get session info',
+                'POST /api/sessions/:sessionId/stop': 'Stop session',
+                'POST /api/sessions/:sessionId/extend': 'Extend session',
+                'POST /api/sessions/:sessionId/flags': 'Submit flag',
+                'GET /api/sessions/:sessionId/flags': 'Get session flags',
+                'GET /api/sessions/:sessionId/connection': 'Get connection info',
+                'POST /api/sessions/:sessionId/activity': 'Update activity',
+                'GET /api/sessions/system/status': 'System status (Admin)',
+                'POST /api/sessions/admin/stop-user/:userId': 'Stop user sessions (Admin)'
+            },
+            labs: {
+                'GET /api/labs': 'Get all labs with filtering',
+                'GET /api/labs/:id': 'Get single lab',
+                'GET /api/labs/:id/stats': 'Get lab statistics',
+                'GET /api/labs/meta/categories': 'Get lab categories',
+                'GET /api/labs/popular': 'Get popular labs',
+                'GET /api/labs/search': 'Search labs',
+                'POST /api/labs/:id/rate': 'Rate a lab',
+                'POST /api/labs': 'Create lab (Admin)',
+                'PUT /api/labs/:id': 'Update lab (Admin)',
+                'DELETE /api/labs/:id': 'Delete lab (Admin)'
+            },
+            stats: {
+                'GET /api/stats/user': 'Get user statistics',
+                'GET /api/stats/badges': 'Get user badges and progress',
+                'GET /api/stats/leaderboard': 'Get global leaderboard',
+                'GET /api/stats/system': 'Get system statistics',
+                'GET /api/stats/compare/:userId': 'Compare with another user'
+            },
+            vpn: {
+                'POST /api/vpn/generate-config/:userId': 'Generate VPN config',
+                'GET /api/vpn/config/:userId': 'Download VPN config',
+                'DELETE /api/vpn/config/:userId': 'Delete VPN config',
+                'GET /api/vpn/sessions': 'Get VPN sessions (Admin)',
+                'POST /api/vpn/sessions/:sessionId/revoke': 'Revoke VPN session (Admin)'
+            },
+            vpnMonitor: {
+                'GET /api/vpn-monitor/status': 'Get user VPN status',
+                'GET /api/vpn-monitor/status/:userId': 'Get specific user VPN status',
+                'GET /api/vpn-monitor/connections': 'Get all VPN connections (Admin)',
+                'GET /api/vpn-monitor/stats': 'Get VPN statistics (Admin)',
+                'GET /api/vpn-monitor/health': 'Get VPN monitor health',
+                'POST /api/vpn-monitor/start': 'Start VPN monitoring (Admin)',
+                'POST /api/vpn-monitor/stop': 'Stop VPN monitoring (Admin)'
+            },
+            profile: {
+                'GET /api/profile': 'Get user profile and statistics',
+                'PUT /api/profile': 'Update user profile',
+                'GET /api/profile/progress': 'Get user lab progress',
+                'GET /api/profile/badges': 'Get user badge progress',
+                'GET /api/profile/labs/:labId/progress': 'Get specific lab progress',
+                'PUT /api/profile/preferences': 'Update user preferences',
+                'GET /api/profile/stats': 'Get detailed user statistics',
+                'GET /api/profile/leaderboard-position': 'Get user leaderboard position',
+                'POST /api/profile/flag-submission': 'Submit flag for scoring'
+            }
+        }
+    });
+});
+
+// Handle 404 for API routes
+app.use('/api', (req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({
+            success: false,
+            message: 'API endpoint not found',
+            path: req.path,
+            method: req.method,
+            availableEndpoints: ['/api/sessions', '/api/labs', '/api/stats', '/api/vpn', '/api/vpn-monitor', '/api/profile', '/api/docs', '/api/status']
+        });
+    }
+    next();
+});
+
+// Fallback for unmatched API routes
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({
+            success: false,
+            message: 'API endpoint not found',
+            path: req.path,
+            method: req.method,
+            availableEndpoints: ['/api/sessions', '/api/labs', '/api/stats', '/api/vpn', '/api/vpn-monitor', '/api/profile', '/api/docs', '/api/status']
+        });
+    }
+    next();
+});
+
+// Handle 404 for non-API routes
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        message: 'Route not found',
+        path: req.path,
+        suggestion: 'Try /api/status for API information'
+    });
+});
+
+// Global error handler
+app.use((error, req, res, next) => {
+    logger.error('Global error handler', {
+        error: error.message,
+        stack: error.stack,
+        url: req.url,
+        method: req.method,
+        ip: req.ip,
+        userId: req.user?.id
+    });
+
+    // CORS error
+    if (error.message === 'Not allowed by CORS') {
+        return res.status(403).json({
+            success: false,
+            message: 'CORS policy violation',
+            error: 'Origin not allowed'
+        });
+    }
+
+    // JSON parsing error
+    if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid JSON in request body',
+            error: 'Malformed JSON'
+        });
+    }
+
+    // Rate limiting error
+    if (error.status === 429) {
+        return res.status(429).json({
+            success: false,
+            message: 'Rate limit exceeded',
+            retryAfter: error.retryAfter
+        });
+    }
+
+    // Default error response
+    const statusCode = error.status || error.statusCode || 500;
+    res.status(statusCode).json({
+        success: false,
+        message: process.env.NODE_ENV === 'production' 
+            ? 'Internal server error' 
+            : error.message,
+        ...(process.env.NODE_ENV === 'development' && {
+            stack: error.stack,
+            details: error
+        })
+    });
+});
+
+// Global server reference for graceful shutdown
+let serverInstance = null;
+
+// Graceful shutdown handler
+const gracefulShutdown = async (signal) => {
+    logger.info(`Received ${signal}. Starting graceful shutdown...`);
+    
+    // Stop accepting new requests
+    if (serverInstance) {
+        serverInstance.close(async () => {
+            logger.info('HTTP server closed');
+        
+        try {
+            // Shutdown WebSocket service
+            websocketService.shutdown();
+            logger.info('WebSocket service shutdown');
+            
+            // Stop VPN monitoring
+            vpnMonitor.stopMonitoring();
+            logger.info('VPN monitoring stopped');
+            
+            // Close database connections
+            await connectDB.connection?.close();
+            logger.info('Database connections closed');
+            
+            // Exit process
+            process.exit(0);
+        } catch (error) {
+            logger.error('Error during shutdown', error);
+            process.exit(1);
+        }
+        });
+    } else {
+        logger.warn('No server instance to close');
+        process.exit(0);
+    }
+
+    // Force exit if graceful shutdown takes too long
+    setTimeout(() => {
+        logger.error('Forcing shutdown after 30s timeout');
+        process.exit(1);
+    }, 30000);
+};
+
+// Initialize server
+const startServer = async () => {
+    try {
+        logger.info('Starting Cybersecurity Labs Backend Server...', {
+            port: PORT,
+            environment: process.env.NODE_ENV || 'development',
+            nodeVersion: process.version
+        });
+
+        // Initialize database
+        await connectDB();
+        logger.info('Database connected successfully');
+
+        // Initialize rate limiting
+        // await initializeRateLimit(); // Disabled - using in-memory rate limiting
+        logger.info('Rate limiting initialized');
+
+        // Start HTTP server
+        const server = app.listen(PORT, () => {
+            // Set global reference for graceful shutdown
+            serverInstance = server;
+            logger.info(`Server started successfully`, {
+                port: PORT,
+                environment: process.env.NODE_ENV || 'development',
+                processId: process.pid,
+                endpoints: {
+                    api: `http://localhost:${PORT}/api`,
+                    health: `http://localhost:${PORT}/health`,
+                    docs: `http://localhost:${PORT}/api/docs`,
+                    websocket: `ws://localhost:${PORT}/ws/vpn-monitor`
+                }
+            });
+            
+            // Initialize WebSocket service
+            websocketService.initialize(server);
+            logger.info('WebSocket service initialized');
+            
+            // Initialize VPN monitoring (disabled in development to avoid log spam)
+            if (process.env.NODE_ENV === 'production') {
+                try {
+                    vpnMonitor.startMonitoring();
+                    logger.info('VPN monitoring started');
+                } catch (error) {
+                    logger.warn('VPN monitoring could not start', error.message);
+                }
+            } else {
+                logger.info('VPN monitoring disabled in development mode');
+            }
+            
+            // Start periodic WebSocket status updates
+            websocketService.startPeriodicUpdates(30000); // Every 30 seconds
+        });
+
+        // Handle server errors
+        server.on('error', (error) => {
+            if (error.code === 'EADDRINUSE') {
+                logger.error(`Port ${PORT} is already in use`);
+                process.exit(1);
+            } else {
+                logger.error('Server error', error);
+                process.exit(1);
+            }
+        });
+
+        // Graceful shutdown handlers
+        process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+        process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+        // Handle uncaught exceptions
+        process.on('uncaughtException', (error) => {
+            logger.error('Uncaught exception', error);
+            process.exit(1);
+        });
+
+        // Handle unhandled promise rejections
+        process.on('unhandledRejection', (reason, promise) => {
+            logger.error('Unhandled promise rejection', {
+                reason: reason,
+                promise: promise
+            });
+            process.exit(1);
+        });
+
+        return server;
+
+    } catch (error) {
+        logger.error('Failed to start server', error);
+        process.exit(1);
+    }
+};
+
+// Start the server
+if (process.env.NODE_ENV !== 'test') {
+    startServer();
+}
+
+export default app;

@@ -1,0 +1,56 @@
+// Website Architecture Diagram
+digraph CyberWebsiteArchitecture {
+  // Graph settings
+  rankdir=TB;
+  node [shape=box, style=filled, fillcolor="#12192a", fontcolor="#ffffff", color="#9ae62e"];
+  edge [color="#9ae62e"];
+  
+  // Main components
+  App [label="App\n(Main Application)"];
+  Router [label="React Router"];
+  HomePage [label="HomePage\n(Landing Page Container)"];
+  Dashboard [label="Dashboard\n(Dashboard Container)"];
+  
+  // Landing page components
+  Hero [label="Hero\n(Banner & Navigation)"];
+  Home_page [label="Home_page\n(Introduction)"];
+  BenefitsSection [label="BenefitsSection"];
+  VideoSection [label="VideoSection"];
+  CounterSection [label="CounterSection"];
+  CaseStudiesSection [label="CaseStudiesSection"];
+  ReviewSection [label="ReviewSection"];
+  
+  // Dashboard components
+  Sidebar [label="Sidebar\n(Navigation Menu)"];
+  DashboardMain [label="Dashboard Main\n(Content Area)"];
+  TopBar [label="Top Bar\n(Search & Profile)"];
+  ProgressSection [label="Progress Section\n(Progress Circles)"];
+  ModulesSection [label="Modules Section\n(Module Table)"];
+  SidePanels [label="Side Panels"];
+  
+  // Connections
+  App -> Router;
+  Router -> HomePage [label="Route: /"];
+  Router -> Dashboard [label="Route: /dashboard"];
+  
+  // HomePage component connections
+  HomePage -> Hero;
+  HomePage -> Home_page;
+  HomePage -> BenefitsSection;
+  HomePage -> VideoSection;
+  HomePage -> CounterSection;
+  HomePage -> CaseStudiesSection;
+  HomePage -> ReviewSection;
+  
+  // Dashboard component connections
+  Dashboard -> Sidebar;
+  Dashboard -> DashboardMain;
+  DashboardMain -> TopBar;
+  DashboardMain -> ProgressSection;
+  DashboardMain -> ModulesSection;
+  DashboardMain -> SidePanels;
+  
+  // Navigation connections
+  Hero -> Dashboard [label="Navigation Link", style=dashed, color="#5a9fff"];
+  Sidebar -> HomePage [label="Navigation Link", style=dashed, color="#5a9fff"];
+}
