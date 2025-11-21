@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
-import ModuleCard from '../components/modules/ModuleCard'
+import ModuleCardBeforelogin from '../components/modules/ModuleCardBeforelogin'
 import { motion } from 'framer-motion'
 import { 
   CheckCircle, 
@@ -28,27 +28,12 @@ const featuredModules = [
   {
     id: 'm1',
     badge: 'Beginner Friendly',
-    title: 'Threat Detection Fundamentals',
+    title: 'hello',
     duration: '8–10 hours',
     description: 'Identify and analyze malware and network threats in real time — the ideal starting point for cybersecurity beginners.',
     topics: ['Malware analysis basics', 'Network monitoring', 'SIEM introduction', 'Incident reporting'],
   },
-  {
-    id: 'm2',
-    badge: 'Most Popular',
-    title: 'Web Application Security',
-    duration: '12–16 hours',
-    description: 'Hands-on web app security: OWASP Top 10, Burp Suite practice, SQLi & XSS exploitation and defense.',
-    topics: ['OWASP Top 10', 'Burp Suite', 'SQL Injection', 'Cross Site Scripting'],
-  },
-  {
-    id: 'm3',
-    badge: 'Career Track',
-    title: 'Network Defense & SOC Ops',
-    duration: '10–14 hours',
-    description: 'Run a SOC workflow: configure firewalls, detect intrusions, and harden networks under attack.',
-    topics: ['Firewall setup', 'IDS/IPS', 'Network forensics', 'Incident response'],
-  },
+  
 ]
 
 // Benefits data for integrated ModuleBenefits section
@@ -385,11 +370,11 @@ export default function Landing() {
         <Header />
 
         {/* top spacer for fixed header */}
-        <div className="h-16" />
+        <div className="h-1" />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           {/* ENHANCED HERO SECTION */}
-          <section id="home" className="min-h-[80vh] flex items-center justify-center py-20">
+          <section id="home" className="min-h-[80vh] flex items-center justify-center py-12">
             <div className="text-center space-y-8 max-w-4xl mx-auto">
               {/* Trust Badge */}
               <motion.div
@@ -813,7 +798,7 @@ export default function Landing() {
             >
               Modules
             </motion.h3>
-            <div className="mt-6 grid md:grid-cols-3 gap-6">
+            <div className="mt-6  gap-6">
               {featuredModules.map((m, index) => (
                 <motion.div
                   key={m.id}
@@ -821,7 +806,7 @@ export default function Landing() {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: index * 0.1 }}
                 >
-                  <ModuleCard module={m} />
+                  <ModuleCardBeforelogin module={m} />
                 </motion.div>
               ))}
             </div>
@@ -1571,7 +1556,7 @@ export default function Landing() {
               ></textarea>
 
               {/* CAPTCHA Section - Added */}
-              <div className="bg-gray-700/50 p-4 rounded-lg border border-gray-600">
+              {/* <div className="bg-gray-700/50 p-4 rounded-lg border border-gray-600">
                 <label className="block text-white text-sm font-medium mb-2 text-left">
                   CAPTCHA Verification
                 </label>
@@ -1588,7 +1573,7 @@ export default function Landing() {
                 <p className="text-gray-400 text-xs mt-2 text-left">
                   Please solve this simple math problem to verify you're human
                 </p>
-              </div>
+              </div> */}
               
               <motion.button
                 type="submit"
@@ -1601,7 +1586,7 @@ export default function Landing() {
             </motion.form>
 
             {/* Social Icons */}
-            <motion.div 
+            {/* <motion.div 
               className="flex justify-center gap-6 mt-12 text-2xl"
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
@@ -1610,7 +1595,7 @@ export default function Landing() {
               <motion.a href="#" className="hover:text-cyan-400 transition-all" whileHover={{ scale: 1.2 }}>🔗</motion.a>
               <motion.a href="#" className="hover:text-cyan-400 transition-all" whileHover={{ scale: 1.2 }}>💼</motion.a>
               <motion.a href="#" className="hover:text-cyan-400 transition-all" whileHover={{ scale: 1.2 }}>🐦</motion.a>
-            </motion.div>
+            </motion.div> */}
           </div>
         </section>
 

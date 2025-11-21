@@ -1,25 +1,14 @@
 // src/components/layout/Header.jsx
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Sun, Moon, Shield, Zap } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Shield, Menu, X } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function Header() {
-  const [theme, setTheme] = useState(() =>
-    typeof window !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light'
-  )
-
   const [isScrolled, setIsScrolled] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('clp_theme')
-    if (saved) {
-      setTheme(saved)
-      document.documentElement.classList.toggle('dark', saved === 'dark')
-    } else {
-      document.documentElement.classList.toggle('dark', theme === 'dark')
-    }
-
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20)
     }
@@ -27,14 +16,6 @@ export default function Header() {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
-
-  function toggleTheme() {
-    const newTheme = theme === 'dark' ? 'light' : 'dark'
-    setTheme(newTheme)
-    localStorage.setItem('clp_theme', newTheme)
-    document.documentElement.classList.toggle('dark', newTheme === 'dark')
-    document.documentElement.classList.toggle('light', newTheme === 'light')
-  }
 
   const navItems = [
     { id: 'home', label: 'Home' },
@@ -56,15 +37,15 @@ export default function Header() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
+          {/* Logo - Always visible with text */}
           <motion.div 
             className="flex items-center gap-3"
             whileHover={{ scale: 1.02 }}
           >
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-lg shadow-cyan-500/25">
-                  <Shield className="w-5 h-5" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-lg shadow-cyan-500/25">
+                  <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <motion.div
                   animate={{ rotate: 360 }}
@@ -72,11 +53,12 @@ export default function Header() {
                   className="absolute -inset-1 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 opacity-20 blur-sm"
                 />
               </div>
+              {/* Always show logo text, even on mobile */}
               <div>
                 <div className="text-sm font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
                   CyberSec Pro
                 </div>
-                <div className="text-xs text-gray-400">Master Cybersecurity</div>
+                <div className="text-xs text-gray-400 hidden xs:block">Master Cybersecurity</div>
               </div>
             </div>
           </motion.div>
@@ -96,77 +78,89 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Right controls */}
+          {/* Right controls - Desktop & Mobile Get Started button */}
           <div className="flex items-center gap-3">
-            {/* <motion.button
-              onClick={toggleTheme}
-              aria-label="Toggle theme"
-              className="p-2 rounded-xl hover:bg-gray-800 transition border border-gray-700"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-4 h-4 text-cyan-400" />
-              ) : (
-                <Moon className="w-4 h-4 text-blue-600" />
-              )}
-            </motion.button> */}
-
-            <Link to="/login" className="text-sm px-4 py-2 rounded-xl hover:bg-gray-800 transition text-gray-300 hover:text-cyan-400 border border-gray-700">
-              Login
-            </Link>
-
-            <Link to="/register" className="inline-block">
+            {/* Get Started button - Always visible */}
+            <Link to="/register" className="hidden sm:inline-block">
               <motion.button 
-                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-6 py-2 rounded-xl font-semibold shadow-lg shadow-cyan-500/25 transition-all"
+                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-4 sm:px-6 py-2 rounded-xl font-semibold shadow-lg shadow-cyan-500/25 transition-all text-sm sm:text-base"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
                 Get Started
               </motion.button>
             </Link>
-          </div>
 
-          {/* Mobile menu */}
-          <div className="md:hidden">
-            <motion.button
-              onClick={() => {
-                const el = document.getElementById('mobile-nav')
-                if (el) el.classList.toggle('hidden')
-              }}
-              className="p-2 rounded-xl hover:bg-gray-800 transition border border-gray-700"
-              aria-label="open menu"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <svg className="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </motion.button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile nav */}
-      <div id="mobile-nav" className="md:hidden hidden bg-gray-900/95 backdrop-blur-md border-t border-gray-700">
-        <div className="flex flex-col gap-1 p-4">
-          {navItems.map((n) => (
-            <motion.a 
-              key={n.id} 
-              href={`#${n.id}`} 
-              className="px-4 py-3 rounded-xl hover:bg-gray-800 text-gray-300 hover:text-cyan-400 transition-all border border-transparent hover:border-gray-600"
-              whileHover={{ x: 4 }}
-            >
-              {n.label}
-            </motion.a>
-          ))}
-          <div className="border-t border-gray-700 mt-2 pt-2">
-            <Link to="/login" className="block px-4 py-3 rounded-xl hover:bg-gray-800 text-gray-300 hover:text-cyan-400 transition-all">
+            {/* Login - Desktop only */}
+            <Link to="/login" className="hidden md:block text-sm px-4 py-2 rounded-xl hover:bg-gray-800 transition text-gray-300 hover:text-cyan-400 border border-gray-700">
               Login
             </Link>
+
+            {/* Mobile Get Started - Compact version */}
+            <Link to="/register" className="sm:hidden inline-block">
+              <motion.button 
+                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-3 py-2 rounded-xl font-semibold shadow-lg shadow-cyan-500/25 transition-all text-xs"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Get Started
+              </motion.button>
+            </Link>
+
+            {/* Mobile menu button */}
+            <div className="flex md:hidden items-center">
+              <motion.button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 rounded-xl hover:bg-gray-800 transition border border-gray-700 text-gray-300 ml-2"
+                aria-label="Toggle menu"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </motion.button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Mobile nav with animation */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="md:hidden bg-gray-900/95 backdrop-blur-md border-t border-gray-700 overflow-hidden"
+          >
+            <div className="flex flex-col gap-1 p-4">
+              {navItems.map((n, index) => (
+                <motion.a 
+                  key={n.id} 
+                  href={`#${n.id}`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="px-4 py-3 rounded-xl hover:bg-gray-800 text-gray-300 hover:text-cyan-400 transition-all border border-transparent hover:border-gray-600 text-base"
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  {n.label}
+                </motion.a>
+              ))}
+              
+              <div className="border-t border-gray-700 mt-2 pt-4">
+                <Link 
+                  to="/login" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block px-4 py-3 rounded-xl hover:bg-gray-800 text-gray-300 hover:text-cyan-400 transition-all border border-gray-600 text-center"
+                >
+                  Login
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.header>
   )
 }
