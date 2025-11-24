@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import Sidebar from '../components/layout/Sidebar'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
+import axios from 'axios'
 import {
   ResponsiveContainer,
   BarChart,
@@ -114,23 +115,27 @@ export default function Dashboard({ user }) {
     setError(null)
 
     try {
-      const res = await fetch(`http://localhost:5001/api/progress/user/${userId}`, {
-        credentials: 'include',
-      })
+      // const res = await fetch(`http://localhost:5001/api/progress/user/${userId}`, {
+      //   withCredentials: true
+      // })
+      const res = await axios.get(`http://localhost:5001/api/progress/user/${userId}`, {
+              withCredentials: true,
+            });
 
-      if (!res.ok) {
-        const txt = await res.text()
-        throw new Error(`Network error: ${res.status} ${txt}`)
-      }
+      // if (!res.ok) {
+      //   const txt = await res.text()
+      //   throw new Error(`Network error: ${res.status} ${txt}`)
+      // }
 
-      const data = await res.json()
-      if (!data.success) {
-        throw new Error('API returned success=false')
-      }
+      // const data = await res.json()
+      // if (!data.success) {
+      //   throw new Error('API returned success=false')
+      // }
 
       // Map the API response into the stats object we use in UI
-      const apiSummary = data.summary || {}
-      const courses = data.courses || []
+      const apiSummary = res.data.summary || {}
+      console.log(res)
+      const courses = res.data.courses || []
 
       const computed = {
         // keep some demo fallback values if you still want to show charts
@@ -228,7 +233,7 @@ export default function Dashboard({ user }) {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <Sidebar user={user} stats={stats} />
 
-      <main className="p-6 pt-[70px] md:pt-6 md:ml-80 overflow-auto">
+      <main className="p-3 pt-[70px] md:pt-6 md:ml-80 overflow-auto">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">

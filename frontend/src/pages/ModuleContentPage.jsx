@@ -284,7 +284,7 @@ export default function ModuleContentPage({user}) {
 
   return (
      <div className="flex min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <main className="flex-1 p-6 pt-[70px] md:pt-6 md:mx-16 overflow-auto scrollbar-hide-desktop overflow-y-hidden">
+      <main className="flex-1 p-3  md:pt-6 md:mx-16 overflow-auto scrollbar-hide-desktop overflow-y-hidden">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <Button variant="secondary" icon={<ArrowLeft className="w-4 h-4" />} onClick={goBack} className="mb-4">

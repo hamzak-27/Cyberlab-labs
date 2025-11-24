@@ -382,7 +382,7 @@ const hoursLearned = useMemo(() => {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <Sidebar user={user} />
 
-      <main className="p-6 pt-[70px] md:pt-6 md:ml-80 overflow-auto">
+      <main className="p-3 pt-[70px] md:pt-6 md:ml-80 overflow-auto">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
             <div>
@@ -432,7 +432,7 @@ const hoursLearned = useMemo(() => {
             })}
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50 mb-8">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-3 md:p-6  border border-gray-700/50 mb-8">
             <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
               <div className="flex-1 w-full">
                 <Input icon="🔍" placeholder="Search modules, topics, or skills..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full" />
@@ -440,10 +440,10 @@ const hoursLearned = useMemo(() => {
 
               <div className="flex flex-wrap gap-4">
                 <div className="flex items-center gap-3">
-                  <Filter className="w-5 h-5 text-gray-400" />
-                  <div className="flex gap-2">
+                  <Filter className="w-5  h-5 text-gray-400" />
+                  <div className="flex flex-wrap   gap-2">
                     {filters.map((filterOption) => (
-                      <button key={filterOption} onClick={() => setFilter(filterOption)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${filter === filterOption ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/25' : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:text-white'}`}>
+                      <button key={filterOption} onClick={() => setFilter(filterOption)} className={`sm:px-4 sm:py-2 px-4 py-1 rounded-xl text-sm sm:flex  sm:text-sm font-medium transition-all ${filter === filterOption ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/25' : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:text-white'}`}>
                         {filterOption}
                       </button>
                     ))}
