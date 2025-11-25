@@ -106,7 +106,7 @@ export default function Register() {
 
     try {
       const response = await axios.post(
-        "http://localhost:5001/api/auth/sign-up",
+        `${import.meta.env.VITE_API_URL}/auth/sign-up`,
         data,
         {
           headers: { "Content-Type": "application/json" },

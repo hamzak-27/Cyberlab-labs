@@ -71,7 +71,7 @@ const Sidebar = ({ user, stats }) => {
   const handleLogout = async () => {
     try {
       await axios.post(
-        "http://localhost:5001/api/auth/sign-out",
+        `${import.meta.env.VITE_API_URL}/auth/sign-out`,
         {},
         { withCredentials: true }
       );

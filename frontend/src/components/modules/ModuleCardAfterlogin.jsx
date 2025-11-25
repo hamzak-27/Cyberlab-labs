@@ -46,7 +46,7 @@ const ModuleCardAfterlogin = ({ module, showActions = true, isEnrolled = false, 
     console.log(module._id,userId,"this is course id")
     try {
 
-        const res = axios.post('http://localhost:5001/api/progress/course/enroll', {    userId, courseId: module._id },{
+        const res = axios.post(`${import.meta.env.VITE_API_URL}/progress/course/enroll`, {    userId, courseId: module._id },{
           withCredentials: true,
         })
         console.log("Enrolled successfully:", res.data);

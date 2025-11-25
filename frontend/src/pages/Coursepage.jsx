@@ -83,7 +83,7 @@ const [errorProgress, setErrorProgress] = useState(null);
       setLoading(true)
       setError(null)
       try {
-        const res = await axios.get('http://localhost:5001/api/courses', {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/courses`, {
           withCredentials: true,
         })
 
@@ -212,7 +212,7 @@ const [errorProgress, setErrorProgress] = useState(null);
     setLoadingProgress(true);
     try {
 
-      const res = await axios.get(`http://localhost:5001/api/progress/user/${userId}`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/progress/user/${userId}`, {
         withCredentials: true,
       });
 

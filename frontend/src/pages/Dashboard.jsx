@@ -118,7 +118,7 @@ export default function Dashboard({ user }) {
       // const res = await fetch(`http://localhost:5001/api/progress/user/${userId}`, {
       //   withCredentials: true
       // })
-      const res = await axios.get(`http://localhost:5001/api/progress/user/${userId}`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/progress/user/${userId}`, {
               withCredentials: true,
             });
 

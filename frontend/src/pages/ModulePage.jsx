@@ -35,7 +35,7 @@ export default function ModulePage({user}) {
     const fetchProgress = async () => {
       setLoadingProgress(true);
       try {
-        const res = await axios.get(`http://localhost:5001/api/progress/user/${userId}`, {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/progress/user/${userId}`, {
           withCredentials: true,
         });
 
@@ -65,7 +65,7 @@ export default function ModulePage({user}) {
     try {
       setLoading(true);
       const response = await axios.get(
-        `http://localhost:5001/api/module/${id}/modules`,
+        `${import.meta.env.VITE_API_URL}/module/${id}/modules`,
         { withCredentials: true }
       );
 
@@ -226,7 +226,7 @@ export default function ModulePage({user}) {
                   fetchCourseAndModules();
                   // Refetch progress data as well
                   if (userId) {
-                    axios.get(`http://localhost:5001/api/progress/user/${userId}`, {
+                    axios.get(`${import.meta.env.VITE_API_URL}/progress/user/${userId}`, {
                       withCredentials: true,
                     }).then(res => {
                       setProgressData(res.data);

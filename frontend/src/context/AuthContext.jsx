@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
   // Fetch logged-in user using cookie JWT
   const fetchUser = async () => {
     try {
-      const res = await axios.get("http://localhost:5001/api/user/me", {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/user/me`, {
         withCredentials: true,
       });
 console.log(res,"this is from res authcontext me")
@@ -45,7 +45,7 @@ console.log(res,"this is from res authcontext me")
   // Logout function
   const logout = async () => {
     await axios.post(
-      "http://localhost:5001/api/auth/logout",
+      `${import.meta.env.VITE_API_URL}/auth/logout`,
       {},
       { withCredentials: true }
     );

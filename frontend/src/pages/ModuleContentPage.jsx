@@ -28,7 +28,7 @@ export default function ModuleContentPage({user}) {
   useEffect(() => {
     const fetchModules = async () => {
       try {
-        const res = await axios.get(`http://localhost:5001/api/module/${courseId}/modules`, {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/module/${courseId}/modules`, {
           withCredentials: true,
         });
         setAllModules(res.data.modules || []);
@@ -47,7 +47,7 @@ export default function ModuleContentPage({user}) {
       setLoading(true);
       try {
         const res = await axios.get(
-          `http://localhost:5001/api/lesson/${moduleId}/lessons`,
+          `${import.meta.env.VITE_API_URL}/lesson/${moduleId}/lessons`,
           { withCredentials: true }
         );
         setCurrentModule(res.data.module || null);
@@ -69,7 +69,7 @@ export default function ModuleContentPage({user}) {
 
     try {
       await axios.post(
-        'http://localhost:5001/api/progress/lesson/complete',
+        `${import.meta.env.VITE_API_URL}/progress/lesson/complete`,
         {
           userId: user._id,
           courseId,
