@@ -3,17 +3,18 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { config } from '../config/environment.js';
+import LibvirtAdapter from './libvirtAdapter.js';
 
 /**
  * Dynamic VM Provisioner Service
- * Handles VirtualBox operations for any VM (OVA/OVF files)
+ * Handles KVM/QEMU operations for any VM (qcow2 base images)
  * Supports: Import, Clone, Start, Stop, Delete, Network Configuration
  */
 class VMProvisionerService {
   constructor() {
-    this.vboxManagePath = config.vm.virtualboxPath;
-    this.ovaStoragePath = config.vm.ovaStoragePath;
-    this.vmInstancesPath = config.vm.vmInstancesPath;
+    this.libvirt = LibvirtAdapter;
+    this.baseImagesPath = config.vm.baseImagesPath || '/var/lib/libvirt/images';
+    this.sessionDisksPath = path.join(this.baseImagesPath, 'sessions');
     this.portRanges = config.ports;
     
     // Track active VMs and port allocations
@@ -23,12 +24,12 @@ class VMProvisionerService {
 
   /**
    * Initialize the provisioner service
-   * Check VirtualBox installation and create necessary directories
+   * Check KVM/libvirt installation and create necessary directories
    */
   async initialize() {
     try {
-      // Check VirtualBox installation
-      await this.checkVirtualBoxInstallation();
+      // Check libvirt/KVM installation
+      await this.checkLibvirtInstallation();
       
       // Create necessary directories
       await this.ensureDirectories();
@@ -45,68 +46,57 @@ class VMProvisionerService {
   }
 
   /**
-   * Import OVA/OVF file as template VM
-   * @param {string} ovaPath - Path to OVA/OVF file
+   * Import qcow2 base image as template VM
+   * @param {string} qcow2Path - Path to qcow2 base image
    * @param {Object} labConfig - Lab configuration object
-   * @returns {Promise<Object>} Import result with template VM ID
+   * @returns {Promise<Object>} Import result with template base image path
    */
-  async importTemplate(ovaPath, labConfig) {
+  async importTemplate(qcow2Path, labConfig) {
     try {
       const { name, vmConfig = {} } = labConfig;
-      const templateName = `${name}-Template`;
+      const baseImageName = `${name}-base.qcow2`;
+      const baseImagePath = path.join(this.baseImagesPath, baseImageName);
       
-      // Verify OVA/OVF file exists
-      await this.verifyVMFile(ovaPath);
+      // Verify qcow2 file exists
+      await this.verifyVMFile(qcow2Path);
       
-      // Check if template already exists
-      const existingTemplate = await this.findVMByName(templateName);
-      if (existingTemplate) {
-        console.log(`Template ${templateName} already exists`);
-        return {
-          success: true,
-          templateId: existingTemplate.uuid,
-          templateName,
-          message: 'Template already imported'
-        };
+      // Check if base image already exists
+      try {
+        const stats = await fs.stat(baseImagePath);
+        if (stats.isFile()) {
+          console.log(`Base image ${baseImageName} already exists`);
+          return {
+            success: true,
+            templateId: baseImagePath,
+            templateName: baseImageName,
+            message: 'Base image already imported'
+          };
+        }
+      } catch (err) {
+        // File doesn't exist, proceed with copy
       }
 
-      // Import OVA/OVF
-      console.log(`Importing ${ovaPath} as ${templateName}...`);
-      const importResult = await this.executeVBoxCommand([
-        'import', 
-        `"${ovaPath}"`,
-        '--vsys', '0',
-        '--vmname', `"${templateName}"`
-      ]);
-
-      // Get the imported VM UUID
-      const templateVM = await this.findVMByName(templateName);
-      if (!templateVM) {
-        throw new Error('Failed to find imported template VM');
-      }
-
-      // Configure template VM
-      await this.configureTemplateVM(templateVM.uuid, vmConfig);
+      // Copy qcow2 base image to libvirt storage
+      console.log(`Copying ${qcow2Path} to ${baseImagePath}...`);
+      await fs.copyFile(qcow2Path, baseImagePath);
       
-      // Create clean state snapshot
-      await this.createSnapshot(templateVM.uuid, 'CleanState', 'Initial clean state for cloning');
-
-      console.log(`Template ${templateName} imported successfully`);
+      console.log(`Base image ${baseImageName} imported successfully`);
       return {
         success: true,
-        templateId: templateVM.uuid,
-        templateName,
-        message: 'Template imported and configured'
+        templateId: baseImagePath,
+        templateName: baseImageName,
+        baseImagePath,
+        message: 'Base image imported and ready for use'
       };
     } catch (error) {
-      console.error('Template import failed:', error);
-      throw new Error(`Template import failed: ${error.message}`);
+      console.error('Base image import failed:', error);
+      throw new Error(`Base image import failed: ${error.message}`);
     }
   }
 
   /**
-   * Create VM instance from template for user session
-   * @param {string} templateId - Template VM UUID
+   * Create VM instance from base image for user session
+   * @param {string} templateId - Base image path (qcow2)
    * @param {string} sessionId - User session ID
    * @param {Object} sessionConfig - Session-specific configuration
    * @returns {Promise<Object>} Instance creation result
@@ -116,65 +106,72 @@ class VMProvisionerService {
       const instanceName = `Session-${sessionId}`;
       const { userId, vmConfig = {} } = sessionConfig;
 
-      // Verify template exists
-      const template = await this.getVMInfo(templateId);
-      if (!template) {
-        throw new Error(`Template VM ${templateId} not found`);
-      }
-
-      // Create linked clone from template snapshot
-      console.log(`Creating instance ${instanceName} from template ${templateId}...`);
-      await this.executeVBoxCommand([
-        'clonevm',
-        templateId,
-        '--snapshot', 'CleanState',
-        '--name', `"${instanceName}"`,
-        '--options', 'link',
-        '--register'
-      ]);
-
-      // Get created instance info
-      const instance = await this.findVMByName(instanceName);
-      if (!instance) {
-        throw new Error('Failed to create VM instance');
-      }
-
-
-      // Discard any saved state from the clone
+      // Verify base image exists
+      const baseImagePath = templateId; // templateId is the base image path
       try {
-        await this.executeVBoxCommand(['discardstate', instance.uuid]);
-        console.log(`Discarded saved state for ${instance.uuid}`);
-      } catch (error) {
-        console.log(`No saved state to discard for ${instance.uuid}`);
+        await fs.stat(baseImagePath);
+      } catch (err) {
+        throw new Error(`Base image ${baseImagePath} not found`);
       }
-      // Configure instance-specific settings
-      await this.configureInstanceVM(instance.uuid, vmConfig, sessionId);
 
-      // Allocate network configuration (supports VPN if user has subnet)
+      console.log(`Creating instance ${instanceName} from base image ${baseImagePath}...`);
+
+      // Allocate network configuration
       const { useVPN = false, userSubnet = null } = sessionConfig;
       const networkConfig = await this.allocateNetworkPorts(sessionId, { useVPN, userSubnet });
-      await this.configureNetworking(instance.uuid, networkConfig);
+      const { vmIP } = networkConfig;
+
+      // Create session disk (qcow2 overlay)
+      const sessionDiskPath = await this.libvirt.createSessionDisk(baseImagePath, sessionId);
+
+      // Generate MAC address for DHCP
+      const macAddress = this.libvirt.generateMacFromSessionId(sessionId);
+
+      // Get VM config
+      const ram = vmConfig.ram || config.defaults.vmRam || 2048;
+      const vcpus = vmConfig.cpu || config.defaults.vmCpu || 2;
+
+      // Create and start VM
+      const domainName = await this.libvirt.createAndStartVM({
+        sessionId,
+        sessionDiskPath,
+        macAddress,
+        ramMB: ram,
+        vcpus
+      });
+
+      // Wait for VM to boot and get IP
+      await this.libvirt.waitForVMBoot(domainName);
+      const actualIP = await this.libvirt.getVMIPAddress(domainName, macAddress);
+      
+      if (actualIP) {
+        console.log(`VM ${domainName} received IP: ${actualIP}`);
+        networkConfig.vmIP = actualIP; // Update with actual IP
+      }
 
       // Track active VM
       this.activeVMs.set(sessionId, {
-        vmId: instance.uuid,
+        vmId: domainName,
         vmName: instanceName,
-        templateId,
+        templateId: baseImagePath,
         sessionId,
         userId,
-        status: 'created',
+        status: 'running',
         networkConfig,
-        createdAt: new Date()
+        sessionDiskPath,
+        macAddress,
+        createdAt: new Date(),
+        startedAt: new Date()
       });
 
-      console.log(`Instance ${instanceName} created successfully`);
+      console.log(`Instance ${instanceName} created and started successfully`);
       return {
         success: true,
-        instanceId: instance.uuid,
+        instanceId: domainName,
         instanceName,
         sessionId,
         networkConfig,
-        status: 'created'
+        status: 'running'
       };
     } catch (error) {
       console.error('Instance creation failed:', error);
@@ -184,6 +181,8 @@ class VMProvisionerService {
 
   /**
    * Start VM instance
+   * Note: With KVM/libvirt, VMs are started immediately during createInstance.
+   * This method is kept for API compatibility but VMs should already be running.
    * @param {string} sessionId - Session ID
    * @returns {Promise<Object>} Start result with connection info
    */
@@ -195,31 +194,30 @@ class VMProvisionerService {
       }
 
       const { vmId, vmName, networkConfig } = vmInfo;
+      const domainName = vmId;
 
-      console.log(`Starting VM instance ${vmName}...`);
+      // Check current state
+      const currentState = await this.libvirt.getVMState(domainName);
       
-      // Start VM in headless mode
-      await this.executeVBoxCommand([
-        'startvm',
-        vmId,
-        '--type', 'headless'
-      ]);
-
-      // Wait for VM to boot
-      await this.waitForVMBoot(vmId);
-
-      // Configure static IP inside VM
-      await this.configureStaticIP(vmId, networkConfig.vmIP, networkConfig.managementPort);
-
-      // Update VM status
-      vmInfo.status = 'running';
-      vmInfo.startedAt = new Date();
-      this.activeVMs.set(sessionId, vmInfo);
+      if (currentState === 'running') {
+        console.log(`VM instance ${vmName} is already running`);
+      } else if (currentState === 'shut off') {
+        console.log(`Starting VM instance ${vmName}...`);
+        await this.libvirt.startVM(domainName);
+        await this.libvirt.waitForVMBoot(domainName);
+        
+        // Update VM status
+        vmInfo.status = 'running';
+        vmInfo.startedAt = new Date();
+        this.activeVMs.set(sessionId, vmInfo);
+      } else {
+        throw new Error(`VM ${domainName} is in unexpected state: ${currentState}`);
+      }
 
       // Generate connection information
       const connectionInfo = this.generateConnectionInfo(networkConfig);
 
-      console.log(`VM instance ${vmName} started successfully`);
+      console.log(`VM instance ${vmName} is running`);
       return {
         success: true,
         sessionId,
@@ -256,28 +254,11 @@ class VMProvisionerService {
       }
 
       const { vmId, vmName } = vmInfo;
+      const domainName = vmId;
       console.log(`Stopping VM instance ${vmName}...`);
 
-      // Try graceful shutdown first
-      try {
-        await this.executeVBoxCommand([
-          'controlvm',
-          vmId,
-          'acpipowerbutton'
-        ]);
-        
-        // Wait for graceful shutdown (max 30 seconds)
-        await this.waitForVMShutdown(vmId, 30000);
-      } catch (gracefulError) {
-        console.warn('Graceful shutdown failed, forcing poweroff:', gracefulError.message);
-        
-        // Force poweroff if graceful shutdown fails
-        await this.executeVBoxCommand([
-          'controlvm',
-          vmId,
-          'poweroff'
-        ]);
-      }
+      // Stop VM using libvirt
+      await this.libvirt.stopVM(domainName);
 
       // Update VM status
       vmInfo.status = 'stopped';
@@ -311,21 +292,12 @@ class VMProvisionerService {
         return { success: true, message: 'Instance already deleted' };
       }
 
-      const { vmId, vmName, networkConfig } = vmInfo;
+      const { vmId, vmName, networkConfig, sessionDiskPath } = vmInfo;
+      const domainName = vmId;
       console.log(`Deleting VM instance ${vmName}...`);
 
-      // Stop VM if running
-      const vmState = await this.getVMState(vmId);
-      if (['running', 'paused'].includes(vmState)) {
-        await this.stopInstance(sessionId);
-      }
-
-      // Unregister and delete VM
-      await this.executeVBoxCommand([
-        'unregistervm',
-        vmId,
-        '--delete'
-      ]);
+      // Delete VM using libvirt (stops if running, undefines domain, deletes disk)
+      await this.libvirt.deleteVM(domainName, sessionDiskPath);
 
       // Release allocated ports
       this.releaseNetworkPorts(networkConfig);
@@ -367,9 +339,10 @@ class VMProvisionerService {
       }
 
       const { vmId, vmName, status, networkConfig } = vmInfo;
+      const domainName = vmId;
       
-      // Get current VM state from VirtualBox
-      const currentState = await this.getVMState(vmId);
+      // Get current VM state from libvirt
+      const currentState = await this.libvirt.getVMState(domainName);
       
       // Update status if needed
       if (currentState !== status) {
@@ -421,39 +394,16 @@ class VMProvisionerService {
   // =============================================================================
 
   /**
-   * Execute VBoxManage command
+   * Check libvirt/KVM installation
    * @private
    */
-  async executeVBoxCommand(args, options = {}) {
-    return new Promise((resolve, reject) => {
-      const command = `"${this.vboxManagePath}" ${args.join(' ')}`;
-      
-      try {
-        const result = execSync(command, {
-          encoding: 'utf8',
-          timeout: options.timeout || 60000,
-          maxBuffer: 1024 * 1024, // 1MB buffer
-          ...options
-        });
-        
-        resolve(result.trim());
-      } catch (error) {
-        reject(new Error(`VBoxManage command failed: ${error.message}\nCommand: ${command}`));
-      }
-    });
-  }
-
-  /**
-   * Check VirtualBox installation
-   * @private
-   */
-  async checkVirtualBoxInstallation() {
+  async checkLibvirtInstallation() {
     try {
-      const version = await this.executeVBoxCommand(['--version']);
-      console.log(`VirtualBox version: ${version}`);
-      return version;
+      const result = execSync('virsh --version', { encoding: 'utf8' });
+      console.log(`libvirt/virsh version: ${result.trim()}`);
+      return result.trim();
     } catch (error) {
-      throw new Error(`VirtualBox not found at ${this.vboxManagePath}. Please install VirtualBox and update the path in environment configuration.`);
+      throw new Error('libvirt/virsh not found. Please install KVM/libvirt stack.');
     }
   }
 
@@ -462,7 +412,7 @@ class VMProvisionerService {
    * @private
    */
   async ensureDirectories() {
-    const dirs = [this.ovaStoragePath, this.vmInstancesPath];
+    const dirs = [this.baseImagesPath, this.sessionDisksPath];
     
     for (const dir of dirs) {
       try {
@@ -487,8 +437,8 @@ class VMProvisionerService {
       
       // Check file extension
       const ext = path.extname(filePath).toLowerCase();
-      if (!['.ova', '.ovf'].includes(ext)) {
-        throw new Error(`Unsupported file type: ${ext}. Only .ova and .ovf files are supported.`);
+      if (ext !== '.qcow2') {
+        throw new Error(`Unsupported file type: ${ext}. Only .qcow2 files are supported.`);
       }
       
       console.log(`Verified VM file: ${filePath} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
@@ -499,27 +449,13 @@ class VMProvisionerService {
   }
 
   /**
-   * Find VM by name
+   * Find VM by name (libvirt)
    * @private
    */
   async findVMByName(vmName) {
     try {
-      const vms = await this.executeVBoxCommand(['list', 'vms']);
-      const vmLines = vms.split('\n');
-      
-      for (const line of vmLines) {
-        if (line.includes(`"${vmName}"`)) {
-          const match = line.match(/"([^"]+)"\s+\{([^}]+)\}/);
-          if (match) {
-            return {
-              name: match[1],
-              uuid: match[2]
-            };
-          }
-        }
-      }
-      
-      return null;
+      const domains = await this.libvirt.listVMs();
+      return domains.find(d => d.name === vmName) || null;
     } catch (error) {
       console.warn('Error finding VM by name:', error.message);
       return null;
@@ -527,117 +463,16 @@ class VMProvisionerService {
   }
 
   /**
-   * Get VM information
-   * @private
-   */
-  async getVMInfo(vmId) {
-    try {
-      const info = await this.executeVBoxCommand(['showvminfo', vmId, '--machinereadable']);
-      const vmInfo = {};
-      
-      info.split('\n').forEach(line => {
-        const [key, ...valueParts] = line.split('=');
-        if (key && valueParts.length > 0) {
-          vmInfo[key] = valueParts.join('=').replace(/"/g, '');
-        }
-      });
-      
-      return vmInfo;
-    } catch (error) {
-      console.warn(`Error getting VM info for ${vmId}:`, error.message);
-      return null;
-    }
-  }
-
-  /**
-   * Get current VM state
-   * @private
-   */
-  async getVMState(vmId) {
-    try {
-      const info = await this.getVMInfo(vmId);
-      return info ? info.VMState.trim() : 'unknown';
-    } catch (error) {
-      console.warn(`Error getting VM state for ${vmId}:`, error.message);
-      return 'unknown';
-    }
-  }
-
-  /**
-   * Configure template VM settings
-   * @private
-   */
-  async configureTemplateVM(vmId, vmConfig = {}) {
-    const {
-      ram = config.defaults.vmRam,
-      cpu = config.defaults.vmCpu,
-      network = 'nat'
-    } = vmConfig;
-
-    try {
-      // Configure memory
-      await this.executeVBoxCommand(['modifyvm', vmId, '--memory', ram.toString()]);
-      
-      // Configure CPUs
-      await this.executeVBoxCommand(['modifyvm', vmId, '--cpus', cpu.toString()]);
-      
-      // Configure network
-      await this.executeVBoxCommand(['modifyvm', vmId, '--nic1', network]);
-      
-      // Disable audio (not needed for labs)
-      await this.executeVBoxCommand(['modifyvm', vmId, '--audio', 'none']);
-      
-      // Disable USB (security)
-      await this.executeVBoxCommand(['modifyvm', vmId, '--usb', 'off']);
-      
-      console.log(`Template VM ${vmId} configured successfully`);
-    } catch (error) {
-      throw new Error(`Template VM configuration failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Configure instance VM settings
-   * @private
-   */
-  async configureInstanceVM(vmId, vmConfig = {}, sessionId) {
-    try {
-      // Apply any instance-specific configurations
-      if (vmConfig.ram) {
-        await this.executeVBoxCommand(['modifyvm', vmId, '--memory', vmConfig.ram.toString()]);
-      }
-      
-      if (vmConfig.cpu) {
-        await this.executeVBoxCommand(['modifyvm', vmId, '--cpus', vmConfig.cpu.toString()]);
-      }
-
-      // Add session metadata as VM description
-      const description = `Lab Session: ${sessionId} | Created: ${new Date().toISOString()}`;
-      await this.executeVBoxCommand(['modifyvm', vmId, '--description', `"${description}"`]);
-      
-      console.log(`Instance VM ${vmId} configured for session ${sessionId}`);
-    } catch (error) {
-      throw new Error(`Instance VM configuration failed: ${error.message}`);
-    }
-  }
-
-  /**
    * Allocate network configuration for session
-   * Supports NAT (development), VPN bridge, and HackTheBox-style internal networking
+   * Supports HackTheBox-style internal networking via KVM/libvirt
    * @private
    */
   async allocateNetworkPorts(sessionId, options = {}) {
     const { useVPN = false, userSubnet = null, useHackTheBoxStyle = true } = options;
     
     if (useHackTheBoxStyle || (useVPN && userSubnet)) {
-      // HackTheBox-style internal networking
-      const vmIP = this.getHackTheBoxStyleIP(sessionId);
-      
-      // Allocate management SSH port for backend flag injection (separate from user access)
-      const managementPort = this.findAvailablePort(30000, 35000);
-      if (managementPort) {
-        this.allocatedPorts.add(managementPort);
-      }
+      // HackTheBox-style internal networking with libvirt
+      const vmIP = this.libvirt.generateIPFromSessionId(sessionId);
       
       return {
         mode: 'hackthebox-internal',
@@ -647,8 +482,7 @@ class VMProvisionerService {
         netmask: '255.255.255.0',
         gateway: '10.12.10.1',
         dnsServers: ['8.8.8.8', '8.8.4.4'],
-        networkName: 'LabNetwork',
-        managementPort, // Backend management SSH port (localhost only)
+        networkName: 'labs-net',
         services: {
           ssh: { ip: vmIP, port: 22 },
           web: { ip: vmIP, port: 80 },
@@ -684,18 +518,6 @@ class VMProvisionerService {
     }
   }
   
-  /**
-   * Generate HackTheBox-style internal IP for lab VM
-   * Uses deterministic IP generation based on sessionId
-   * Range: 10.12.10.10 - 10.12.10.200
-   * @private
-   */
-  getHackTheBoxStyleIP(sessionId) {
-    const hash = crypto.createHash('md5').update(sessionId).digest('hex');
-    const ipSuffix = (parseInt(hash.slice(0, 2), 16) % 190) + 10; // 10-199
-    
-    return `10.12.10.${ipSuffix}`;
-  }
 
   /**
    * Find available port in range
@@ -727,95 +549,15 @@ class VMProvisionerService {
   }
 
   /**
-   * Configure VM networking - supports NAT, VPN bridge, and HackTheBox-style internal networking
+   * Configure VM networking - libvirt handles this automatically
+   * Network configuration is done during VM creation in LibvirtAdapter
+   * This method is kept for API compatibility
    * @private
    */
   async configureNetworking(vmId, networkConfig) {
-    try {
-      if (!networkConfig) throw new Error('Network configuration is required');
-      
-      if (networkConfig.mode === 'hackthebox-internal') {
-        // HackTheBox-style internal networking - use VirtualBox internal network
-        const { vmIP, networkName, managementPort } = networkConfig;
-        
-        console.log(`Configuring HackTheBox-style internal network for VM ${vmId} with IP ${vmIP}`);
-        
-        // NIC 1: Internal network for user VPN access (primary)
-        await this.executeVBoxCommand(['modifyvm', vmId, '--nic1', 'intnet']);
-        await this.executeVBoxCommand(['modifyvm', vmId, '--intnet1', networkName || 'LabNetwork']);
-        await this.executeVBoxCommand(['modifyvm', vmId, '--nicpromisc1', 'allow-all']);
-        
-        // Set MAC address for static IP assignment
-        const macSuffix = this.generateMacFromIP(vmIP);
-        await this.executeVBoxCommand(['modifyvm', vmId, '--macaddress1', `080027${macSuffix}`]);
-        
-        // NIC 2: NAT for backend management access (flag injection)
-        await this.executeVBoxCommand(['modifyvm', vmId, '--nic2', 'nat']);
-        
-        // Configure SSH port forwarding on NIC 2 for backend flag injection
-        const managementSSHPort = managementPort || this.findAvailablePort(30000, 35000);
-        if (managementSSHPort) {
-          this.allocatedPorts.add(managementSSHPort);
-          await this.executeVBoxCommand([
-            'modifyvm', vmId,
-            '--natpf2', `management-ssh,tcp,,${managementSSHPort},,22`
-          ]);
-          console.log(`Management SSH port forwarding configured: localhost:${managementSSHPort} -> VM:22`);
-        }
-        
-        console.log(`HackTheBox-style dual network configured for VM ${vmId}: User=${vmIP}, Management=localhost:${managementSSHPort}`);
-        
-      } else if (networkConfig.mode === 'bridge') {
-        // VPN Bridge mode - configure bridged networking
-        const { vmIP, subnet, netmask, gateway } = networkConfig;
-        
-        console.log(`Configuring bridged network for VM ${vmId} with IP ${vmIP}`);
-        
-        // Set first NIC to bridged mode
-        await this.executeVBoxCommand(['modifyvm', vmId, '--nic1', 'bridged']);
-        
-        // Configure bridge adapter (use default host adapter)
-        // Note: In production, this should be configurable per environment
-        await this.executeVBoxCommand(['modifyvm', vmId, '--bridgeadapter1', 'Default']);
-        
-        // Enable promiscuous mode for VPN bridge
-        await this.executeVBoxCommand(['modifyvm', vmId, '--nicpromisc1', 'allow-all']);
-        
-        console.log(`VPN Bridge network configured for VM ${vmId}: IP=${vmIP}, Subnet=${subnet}`);
-        
-      } else {
-        // NAT mode with port forwarding (development fallback)
-        const { sshPort, webPort } = networkConfig;
-        
-        // Configure SSH port forwarding
-        await this.executeVBoxCommand([
-          'modifyvm', vmId,
-          '--natpf1', `ssh,tcp,,${sshPort},,22`
-        ]);
-        
-        // Configure web port forwarding
-        await this.executeVBoxCommand([
-          'modifyvm', vmId,
-          '--natpf1', `web,tcp,,${webPort},,80`
-        ]);
-        
-        console.log(`NAT network configured for VM ${vmId}: SSH=${sshPort}, Web=${webPort}`);
-      }
-    } catch (error) {
-      throw new Error(`Network configuration failed: ${error.message}`);
-    }
-  }
-  
-  /**
-   * Generate MAC address suffix from IP for consistent networking
-   * @private
-   */
-  generateMacFromIP(vmIP) {
-    const ipParts = vmIP.split('.');
-    const lastTwoOctets = ipParts.slice(-2);
-    return lastTwoOctets.map(octet => 
-      parseInt(octet).toString(16).padStart(2, '0')
-    ).join('') + '00';
+    // Network configuration is handled by LibvirtAdapter during createAndStartVM
+    // MAC address and network attachment are set in the domain XML
+    console.log(`Network configuration for ${vmId} handled by LibvirtAdapter`);
   }
 
   /**
@@ -931,87 +673,6 @@ class VMProvisionerService {
     }
   }
 
-  /**
-   * Create VM snapshot
-   * @private
-   */
-  async createSnapshot(vmId, snapshotName, description = '') {
-    try {
-      await this.executeVBoxCommand([
-        'snapshot', vmId, 'take', `"${snapshotName}"`,
-        '--description', `"${description}"`
-      ]);
-      console.log(`Snapshot ${snapshotName} created for VM ${vmId}`);
-    } catch (error) {
-      throw new Error(`Snapshot creation failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Wait for VM to boot (check if VM is running)
-   * @private
-   */
-  async waitForVMBoot(vmId, maxWaitMs = 30000) {
-    const startTime = Date.now();
-    const checkInterval = 2000; // Check every 2 seconds
-    
-    console.log(`Waiting for VM ${vmId} to boot...`);
-    
-    while (Date.now() - startTime < maxWaitMs) {
-      try {
-        const state = await this.getVMState(vmId);
-        
-        if (state === 'running') {
-          console.log(`✅ VM ${vmId} is running - boot successful!`);
-          return true;
-        }
-        
-        console.log(`VM ${vmId} state: ${state}`);
-        
-        if (state === 'starting') {
-          console.log(`VM ${vmId} is starting...`);
-        }
-      } catch (error) {
-        console.warn('Error checking VM boot status:', error.message);
-      }
-      
-      await this.sleep(checkInterval);
-    }
-    
-    // Final check - if VM is running, consider it successful
-    const finalState = await this.getVMState(vmId);
-    if (finalState === 'running') {
-      console.log(`VM ${vmId} is running - boot completed after timeout period`);
-      return true;
-    }
-    
-    throw new Error(`VM boot failed: VM ${vmId} state is ${finalState} after ${maxWaitMs/1000} seconds`);
-  }
-
-  /**
-   * Wait for VM to shutdown
-   * @private
-   */
-  async waitForVMShutdown(vmId, maxWaitMs = 30000) {
-    const startTime = Date.now();
-    const checkInterval = 2000; // Check every 2 seconds
-    
-    while (Date.now() - startTime < maxWaitMs) {
-      try {
-        const state = await this.getVMState(vmId);
-        if (state === 'poweroff') {
-          return true;
-        }
-      } catch (error) {
-        // VM might be deleted/unregistered, which means it's stopped
-        return true;
-      }
-      
-      await this.sleep(checkInterval);
-    }
-    
-    throw new Error(`VM shutdown timeout: VM ${vmId} did not stop within ${maxWaitMs/1000} seconds`);
-  }
 
   /**
    * Load active VMs from previous session (persistence)
@@ -1023,40 +684,6 @@ class VMProvisionerService {
     console.log('Active VM state loaded');
   }
 
-  /**
-   * Configure static IP inside VM guest
-   * @private
-   */
-  async configureStaticIP(vmId, vmIP, sshPort) {
-    try {
-      console.log(`Configuring static IP ${vmIP} inside VM ${vmId}...`);
-      
-      // Wait for SSH to be ready
-      await this.sleep(15000);
-      
-      const { exec } = await import('child_process');
-      const { promisify } = await import('util');
-      const execAsync = promisify(exec);
-      
-      const sshCommand = `sshpass -p tiago ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 tiago@localhost -p ${sshPort} "echo tiago | sudo -S bash /opt/cyberlabs/configure-static-ip.sh ${vmIP}"`;
-      
-      // First, copy the script to VM
-      const scpCommand = `sshpass -p tiago scp -o StrictHostKeyChecking=no -P ${sshPort} /opt/cyberlabs/configure-static-ip.sh tiago@localhost:/tmp/`;
-      
-      try {
-        await execAsync(scpCommand);
-        const sshExecCommand = `sshpass -p tiago ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 tiago@localhost -p ${sshPort} "echo tiago | sudo -S bash /tmp/configure-static-ip.sh ${vmIP}"`;
-        const { stdout } = await execAsync(sshExecCommand);
-        console.log(`✅ Static IP configured: ${vmIP}`);
-        console.log(stdout);
-      } catch (error) {
-        console.warn(`⚠️ Could not configure static IP (VM may not have SSH ready yet): ${error.message}`);
-      }
-      
-    } catch (error) {
-      console.warn(`⚠️ Static IP configuration skipped: ${error.message}`);
-    }
-  }
 
   /**
    * Sleep utility
