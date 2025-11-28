@@ -19,7 +19,10 @@ const LAMPIAO_CONFIG = {
   difficulty: 'Easy',
   category: 'Binary',
   
-  // File paths (adjust based on actual location)
+  // File paths for KVM/libvirt (qcow2 base image)
+  baseImagePath: '/var/lib/libvirt/images/lampiao-base.qcow2',
+  
+  // Legacy OVF path (kept for backward compatibility)
   ovfPath: path.join(process.cwd(), 'Lampiao', 'Lampiao.ovf'),
   
   // Flag configuration
@@ -86,16 +89,17 @@ async function calculateChecksum(filePath) {
 }
 
 /**
- * Verify OVF file exists
+ * Verify base image file exists
  */
-async function verifyOVFFile(ovfPath) {
+async function verifyBaseImageFile(baseImagePath) {
   try {
-    const stats = await fs.stat(ovfPath);
-    console.log(`✅ OVF file found: ${ovfPath} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
+    const stats = await fs.stat(baseImagePath);
+    console.log(`✅ Base image found: ${baseImagePath} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
     return true;
   } catch (error) {
-    console.error(`❌ OVF file not found: ${ovfPath}`);
-    console.error('Please ensure the Lampião OVF file is in the correct location.');
+    console.error(`❌ Base image not found: ${baseImagePath}`);
+    console.error('Please ensure the Lampião qcow2 base image is in /var/lib/libvirt/images/');
+    console.warn('This script should be run on the OVH server where libvirt is installed.');
     return false;
   }
 }
@@ -129,15 +133,16 @@ async function registerLampiaoLab() {
       
       // Update existing lab with new configuration
       Object.assign(lab, LAMPIAO_CONFIG);
-      lab.ovaChecksum = await calculateChecksum(LAMPIAO_CONFIG.ovfPath);
+      lab.baseImageChecksum = await calculateChecksum(LAMPIAO_CONFIG.baseImagePath);
+      lab.templateVmId = LAMPIAO_CONFIG.baseImagePath; // Store base image path as templateVmId
       lab = await lab.save();
       
       console.log('✅ Lampião lab updated successfully!');
     } else {
       console.log('🆕 Creating new Lampião lab entry...');
       
-      // Create checksum
-      const checksum = await calculateChecksum(LAMPIAO_CONFIG.ovfPath);
+      // Create checksum for base image
+      const checksum = await calculateChecksum(LAMPIAO_CONFIG.baseImagePath);
       
       // Create admin user reference (for demo, using a placeholder)
       // In production, this should reference an actual admin user
@@ -146,7 +151,8 @@ async function registerLampiaoLab() {
       // Create new lab
       lab = new Lab({
         ...LAMPIAO_CONFIG,
-        ovaChecksum: checksum,
+        baseImageChecksum: checksum,
+        templateVmId: LAMPIAO_CONFIG.baseImagePath, // Store base image path
         createdBy: adminUserId,
         stats: {
           totalSessions: 0,
@@ -171,8 +177,9 @@ async function registerLampiaoLab() {
     console.log(`   Name: ${lab.name}`);
     console.log(`   Difficulty: ${lab.difficulty}`);
     console.log(`   Category: ${lab.category}`);
-    console.log(`   OVF Path: ${lab.ovfPath}`);
-    console.log(`   Checksum: ${lab.ovaChecksum}`);
+    console.log(`   Base Image Path: ${lab.baseImagePath}`);
+    console.log(`   Template VM ID: ${lab.templateVmId}`);
+    console.log(`   Checksum: ${lab.baseImageChecksum}`);
     console.log(`   SSH Credentials: ${lab.defaultCredentials.username}:${lab.defaultCredentials.password}`);
     console.log(`   User Flag Points: ${lab.flags.user.points}`);
     console.log(`   Root Flag Points: ${lab.flags.root.points}`);
@@ -193,11 +200,12 @@ async function main() {
   console.log('🚀 Starting Lampião Lab Registration...\n');
   
   try {
-    // Step 1: Verify OVF file
-    console.log('Step 1: Verifying OVF file...');
-    const ovfExists = await verifyOVFFile(LAMPIAO_CONFIG.ovfPath);
-    if (!ovfExists) {
-      throw new Error('OVF file verification failed');
+    // Step 1: Verify base image file
+    console.log('Step 1: Verifying qcow2 base image...');
+    const baseImageExists = await verifyBaseImageFile(LAMPIAO_CONFIG.baseImagePath);
+    if (!baseImageExists) {
+      console.warn('⚠️  Base image verification failed - continuing anyway (you may be running on Windows)');
+      console.warn('⚠️  Make sure lampiao-base.qcow2 exists on the OVH server at /var/lib/libvirt/images/');
     }
     
     // Step 2: Connect to database

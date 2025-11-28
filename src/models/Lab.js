@@ -32,16 +32,26 @@ const LabSchema = new mongoose.Schema({
   // File paths and VM info
   ovfPath: {
     type: String,
-    required: true
+    required: false // Legacy field, kept for backward compatibility
+  },
+  
+  baseImagePath: {
+    type: String, // Path to qcow2 base image for KVM/libvirt
+    required: false
   },
   
   ovaChecksum: {
     type: String,
-    required: true
+    required: false // Legacy field
+  },
+  
+  baseImageChecksum: {
+    type: String, // Checksum for qcow2 base image
+    required: false
   },
   
   templateVmId: {
-    type: String, // VirtualBox VM ID after import
+    type: String, // Legacy: VirtualBox VM ID / Now: base image path
     index: true
   },
   
