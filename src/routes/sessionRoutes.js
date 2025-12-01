@@ -10,7 +10,8 @@ import {
     getSystemStatus,
     stopUserSessions,
     getConnectionInfo,
-    getSessionFlags
+    getSessionFlags,
+    downloadVPNConfig
 } from '../controllers/sessionController.js';
 import { authorization, adminOnly } from '../middleware/auth.js';
 import { rateLimitByUser, rateLimitByIP } from '../middleware/rateLimit.js';
@@ -303,6 +304,36 @@ router.post('/:sessionId/flags', rateLimitByUser(10, 60), submitFlag);
  *         description: Session not found
  */
 router.get('/:sessionId/flags', getSessionFlags);
+
+/**
+ * @swagger
+ * /api/sessions/{sessionId}/vpn-config:
+ *   get:
+ *     summary: Download VPN configuration file
+ *     tags: [Sessions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Session ID
+ *     responses:
+ *       200:
+ *         description: VPN configuration file
+ *         content:
+ *           application/x-openvpn-profile:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       403:
+ *         description: Access denied to this session
+ *       404:
+ *         description: Session not found
+ */
+router.get('/:sessionId/vpn-config', downloadVPNConfig);
 
 /**
  * @swagger

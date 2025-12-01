@@ -506,3 +506,114 @@ export const getSessionFlags = async (req, res) => {
         });
     }
 };
+
+/**
+ * @desc Download VPN configuration file for session
+ * @route GET /api/sessions/:sessionId/vpn-config
+ * @access Private
+ */
+export const downloadVPNConfig = async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const userId = req.user.id;
+
+        const manager = getSessionManager();
+        const sessionInfo = await manager.getSessionInfo(sessionId);
+
+        // Verify user owns this session
+        if (sessionInfo.userId && sessionInfo.userId !== userId && !req.user.isAdmin) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied to this session'
+            });
+        }
+
+        if (sessionInfo.status !== 'running') {
+            return res.status(400).json({
+                success: false,
+                message: 'Session must be running to download VPN config'
+            });
+        }
+
+        // Generate user-specific VPN config
+        const vpnConfig = generateVPNConfigFile(userId, sessionId);
+
+        res.setHeader('Content-Type', 'application/x-openvpn-profile');
+        res.setHeader('Content-Disposition', `attachment; filename="cyberlabs-${userId.slice(0, 8)}.ovpn"`);
+        res.send(vpnConfig);
+
+        logger.info('VPN config downloaded', { sessionId, userId });
+
+    } catch (error) {
+        logger.error('Failed to download VPN config', {
+            error: error.message,
+            sessionId: req.params.sessionId,
+            userId: req.user?.id
+        });
+
+        const statusCode = error.message.includes('not found') ? 404 :
+                          error.message.includes('Access denied') ? 403 : 500;
+
+        res.status(statusCode).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+/**
+ * Generate VPN configuration file content
+ * @private
+ */
+function generateVPNConfigFile(userId, sessionId) {
+    // Base VPN configuration - adjust remote address to your OVH server
+    const vpnConfig = `client
+dev tun
+proto udp
+remote 51.79.77.40 1194
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+remote-cert-tls server
+cipher AES-256-CBC
+auth SHA256
+key-direction 1
+verb 3
+
+# User: ${userId}
+# Session: ${sessionId}
+# Generated: ${new Date().toISOString()}
+
+<ca>
+-----BEGIN CERTIFICATE-----
+# TODO: Insert your CA certificate here
+# This should be the contents of /etc/openvpn/server/ca.crt from OVH server
+-----END CERTIFICATE-----
+</ca>
+
+<cert>
+-----BEGIN CERTIFICATE-----
+# TODO: Insert client certificate here
+# Generate per-user certificates for production
+# For now, you can use a shared client certificate
+-----END CERTIFICATE-----
+</cert>
+
+<key>
+-----BEGIN PRIVATE KEY-----
+# TODO: Insert client private key here
+# Generate per-user keys for production
+-----END PRIVATE KEY-----
+</key>
+
+<tls-auth>
+-----BEGIN OpenVPN Static key V1-----
+# TODO: Insert tls-auth key here
+# This should be from /etc/openvpn/server/ta.key from OVH server
+-----END OpenVPN Static key V1-----
+</tls-auth>
+`;
+
+    return vpnConfig;
+}
