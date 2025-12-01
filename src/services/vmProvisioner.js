@@ -26,7 +26,7 @@ class VMProvisionerService {
     this.activeVMs = new Map();
     this.allocatedPorts = new Set();
   }
-}
+
 
   /**
    * Initialize the provisioner service
