@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Filter, Clock, Flag, Users, TrendingUp, Zap, Target, Award } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/layout/Sidebar'
 import LabEditor from '../components/labs/LabEditor'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
+import api from '../lib/api'
 
 export default function LabsPage({user}) {
+  const navigate = useNavigate()
   const [labs, setLabs] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [activeLab, setActiveLab] = useState(null)
   const [flag, setFlag] = useState('')
   const [filter, setFilter] = useState('All')
@@ -18,83 +23,70 @@ export default function LabsPage({user}) {
   const [view, setView] = useState('list') // 'list' or 'detail'
 
   useEffect(() => {
-    // Enhanced demo data
-    setLabs([
-      { 
-        id: 'l1', 
-        title: 'Phishing Email Analysis', 
-        description: 'Analyze and identify phishing attempts in email headers and content. Learn to spot malicious links and social engineering tactics.',
-        difficulty: 'Beginner', 
-        time: '30 min',
-        category: 'Email Security',
-        completed: true,
-        flags: 2,
-        popularity: 88,
-        students: 1200,
-        rating: 4.8,
-        image: '📧',
-        color: 'from-blue-500 to-cyan-500',
-        technologies: ['Wireshark', 'Email Headers', 'Social Engineering']
-      },
-      { 
-        id: 'l2', 
-        title: 'SQL Injection Playground', 
-        description: 'Practice SQL injection techniques on a vulnerable web application. Master UNION attacks, boolean-based blind, and time-based attacks.',
-        difficulty: 'Intermediate', 
-        time: '45 min',
-        category: 'Web Security',
-        completed: true,
-        flags: 3,
-        popularity: 95,
-        students: 850,
-        rating: 4.9,
-        image: '💉',
-        color: 'from-red-500 to-pink-500',
-        technologies: ['SQLMap', 'Burp Suite', 'Manual Testing']
-      },
-      { 
-        id: 'l3', 
-        title: 'Network Traffic Analysis', 
-        description: 'Use Wireshark to analyze suspicious network traffic patterns. Detect malware communications and unauthorized data exfiltration.',
-        difficulty: 'Intermediate', 
-        time: '60 min',
-        category: 'Network Security',
-        completed: false,
-        flags: 4,
-        popularity: 82,
-        students: 720,
-        rating: 4.7,
-        image: '🌐',
-        color: 'from-green-500 to-emerald-500',
-        technologies: ['Wireshark', 'Packet Analysis', 'Network Forensics']
-      },
-      { 
-        id: 'l4', 
-        title: 'Buffer Overflow Exploitation', 
-        description: 'Learn stack-based buffer overflow attacks on vulnerable binaries. Master shellcode injection and exploit development.',
-        difficulty: 'Advanced', 
-        time: '90 min',
-        category: 'Binary Exploitation',
-        completed: false,
-        flags: 5,
-        popularity: 76,
-        students: 450,
-        rating: 4.9,
-        image: '💥',
-        color: 'from-purple-500 to-indigo-500',
-        technologies: ['GDB', 'Python', 'Assembly', 'Exploit Development']
-      }
-    ])
-
+    fetchLabs()
+    // TODO: Fetch user stats from API
     setStats({
-      labsCompleted: 15,
-      flagsCaptured: 24,
-      averageScore: 87,
-      totalLabs: 25,
-      weeklyProgress: 4,
-      rank: 42
+      labsCompleted: 0,
+      flagsCaptured: 0,
+      averageScore: 0,
+      totalLabs: 0,
+      weeklyProgress: 0,
+      rank: 0
     })
   }, [])
+
+  const fetchLabs = async () => {
+    try {
+      setLoading(true)
+      const { data } = await api.get('/api/labs')
+      const labsData = data.data || data
+      
+      // Transform backend data to match frontend structure
+      const transformedLabs = labsData.map(lab => ({
+        id: lab._id,
+        title: lab.name,
+        description: lab.description,
+        difficulty: lab.difficulty,
+        time: lab.estimatedSolveTime || '60 min',
+        category: lab.category,
+        completed: false, // TODO: Check user progress
+        flags: 2, // user + root flags
+        popularity: 85,
+        students: lab.stats?.totalSessions || 0,
+        rating: lab.rating?.average || 4.5,
+        image: getCategoryEmoji(lab.category),
+        color: getDifficultyColor(lab.difficulty),
+        technologies: lab.services || [],
+        vulnerabilities: lab.vulnerabilities || [],
+        points: (lab.flags?.user?.points || 25) + (lab.flags?.root?.points || 50)
+      }))
+      
+      setLabs(transformedLabs)
+      setStats(prev => ({ ...prev, totalLabs: transformedLabs.length }))
+      setError(null)
+    } catch (err) {
+      console.error('Failed to fetch labs:', err)
+      setError('Failed to load labs. Please try again.')
+      // Fallback to empty array instead of demo data
+      setLabs([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getCategoryEmoji = (category) => {
+    const emojis = {
+      'Web': '🌐',
+      'Binary': '💥',
+      'Network': '🔌',
+      'Crypto': '🔐',
+      'Forensics': '🔍',
+      'Misc': '🎯'
+    }
+    return emojis[category] || '🔬'
+  }
+
+  // Remove the old demo data starting from line 'l1'
 
   const filteredLabs = labs.filter(lab => {
     const matchesFilter = filter === 'All' || lab.category === filter
@@ -116,8 +108,8 @@ export default function LabsPage({user}) {
   ]
 
   const startLab = (lab) => {
-    setActiveLab(lab)
-    setView('detail')
+    // Navigate to lab details page
+    navigate(`/labs/${lab.id}`)
   }
 
   const submitFlag = async () => {
@@ -142,6 +134,26 @@ export default function LabsPage({user}) {
       
       <main className="p-6 pt-[70px] md:pt-6 md:ml-80 overflow-auto">
         {/* Header Section */}
+        {loading && (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">⏳</div>
+            <p className="text-gray-400">Loading labs...</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 mb-8">
+            <p className="text-red-400 text-center">{error}</p>
+            <button 
+              onClick={fetchLabs}
+              className="mt-4 mx-auto block px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -526,6 +538,7 @@ export default function LabsPage({user}) {
             </motion.div>
           )}
         </AnimatePresence>
+        )}
       </main>
     </div>
   )

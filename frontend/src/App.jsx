@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import LabsPage from "./pages/LabsPage";
+import LabDetailsPage from "./pages/LabDetailsPage";
 import toast, { Toaster } from "react-hot-toast";
 import Community from "./pages/Community";
 import PrivateRoute from "./lib/PrivateRoute";
@@ -104,6 +105,7 @@ console.log(user)
         />
 
         <Route path="/labs" element={ <PrivateRoute allowedRoles={["user", "admin"]}><LabsPage user={user} /></PrivateRoute>} />
+        <Route path="/labs/:labId" element={ <PrivateRoute allowedRoles={["user", "admin"]}><LabDetailsPage user={user} /></PrivateRoute>} />
         <Route path="/community" element={ <PrivateRoute allowedRoles={["user", "admin"]}><Community user={user} /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
