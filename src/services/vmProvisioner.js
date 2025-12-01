@@ -12,15 +12,21 @@ import LibvirtAdapter from './libvirtAdapter.js';
  */
 class VMProvisionerService {
   constructor() {
-    this.libvirt = LibvirtAdapter;
     this.baseImagesPath = config.vm.baseImagesPath || '/var/lib/libvirt/images';
     this.sessionDisksPath = path.join(this.baseImagesPath, 'sessions');
     this.portRanges = config.ports;
-    
-    // Track active VMs and port allocations
+
+    // Proper LibvirtAdapter instance for KVM/libvirt ops
+    this.libvirt = new LibvirtAdapter({
+      baseImagesPath: this.baseImagesPath,
+      sessionsPath: this.sessionDisksPath,
+      networkName: config.vm.libvirtNetworkName || 'labs-net',
+    });
+
     this.activeVMs = new Map();
     this.allocatedPorts = new Set();
   }
+}
 
   /**
    * Initialize the provisioner service
