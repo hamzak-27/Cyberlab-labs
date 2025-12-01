@@ -38,9 +38,17 @@ export default function LabsPage({user}) {
   const fetchLabs = async () => {
     try {
       setLoading(true)
-      const { data } = await api.get('/api/labs')
-      const labsData = data.data || data
-      
+      const { data } = await api.get('/labs')
+
+      // Backend returns shape: { success: true, data: { labs: [...] } }
+      const labsData = Array.isArray(data?.data?.labs)
+        ? data.data.labs
+        : Array.isArray(data?.labs)
+          ? data.labs
+          : Array.isArray(data)
+            ? data
+            : []
+
       // Transform backend data to match frontend structure
       const transformedLabs = labsData.map(lab => ({
         id: lab._id,
@@ -153,7 +161,6 @@ export default function LabsPage({user}) {
           </div>
         )}
 
-        {!loading && !error && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -297,8 +304,8 @@ export default function LabsPage({user}) {
           </motion.div>
         </motion.div>
 
-        <AnimatePresence mode="wait">
-          {view === 'list' ? (
+        <AnimatePresence>
+            {view === 'list' ? (
             <motion.div
               key="list-view"
               initial={{ opacity: 0 }}
@@ -536,9 +543,8 @@ export default function LabsPage({user}) {
                 )}
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-        )}
+            )}
+          </AnimatePresence>
       </main>
     </div>
   )

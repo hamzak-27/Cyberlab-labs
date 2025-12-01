@@ -2,7 +2,11 @@ import axios from 'axios'
 import { useAuthStore } from '../store/useAuthStore'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
+  // Prefer explicit API URL if provided; fall back to same-origin /api
+  baseURL:
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    '/api',
   timeout: 15000,
 })
 
