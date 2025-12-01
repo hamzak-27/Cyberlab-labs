@@ -47,7 +47,7 @@ export default function ActiveLabSession({ session, lab, onTerminate }) {
 
   const downloadVPN = async () => {
     try {
-      const response = await api.get(`/api/sessions/${session.sessionId}/vpn-config`, {
+      const response = await api.get(`/sessions/${session.sessionId}/vpn-config`, {
         responseType: 'blob'
       })
       const url = window.URL.createObjectURL(new Blob([response.data]))
@@ -75,7 +75,7 @@ export default function ActiveLabSession({ session, lab, onTerminate }) {
     setSubmitting(prev => ({ ...prev, [flagType]: true }))
 
     try {
-      const { data } = await api.post(`/api/sessions/${session.sessionId}/flags`, {
+      const { data } = await api.post(`/sessions/${session.sessionId}/flags`, {
         flagName: flagType,
         flag: flagValue.trim()
       })
@@ -116,7 +116,7 @@ export default function ActiveLabSession({ session, lab, onTerminate }) {
     
     setTerminating(true)
     try {
-      await api.post(`/api/sessions/${session.sessionId}/stop`)
+      await api.post(`/sessions/${session.sessionId}/stop`)
       onTerminate()
     } catch (error) {
       console.error('Failed to terminate session:', error)

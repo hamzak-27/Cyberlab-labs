@@ -26,11 +26,11 @@ export default function LabDetailsPage({ user }) {
       setLoading(true)
       
       // Fetch lab details
-      const { data: labData } = await api.get(`/api/labs/${labId}`)
+      const { data: labData } = await api.get(`/labs/${labId}`)
       setLab(labData.data || labData)
       
       // Check for active session
-      const { data: sessionsData } = await api.get('/api/sessions/active')
+      const { data: sessionsData } = await api.get('/sessions/active')
       const sessions = sessionsData.data?.sessions || []
       const session = sessions.find(s => s.lab?.id === labId)
       setActiveSession(session)
@@ -47,7 +47,7 @@ export default function LabDetailsPage({ user }) {
   const startSession = async () => {
     try {
       setStarting(true)
-      const { data } = await api.post('/api/sessions/start', { labId })
+      const { data } = await api.post('/sessions/start', { labId })
       setActiveSession(data.data)
       setError(null)
     } catch (err) {
