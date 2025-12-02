@@ -247,15 +247,24 @@ class LibvirtAdapter {
   }
 
   /**
-   * Get IP address for a VM from DHCP leases
+   * Get IP address for a VM.
+   *
+   * Strategy:
+   *   1) Try DHCP leases on the libvirt network (fast path)
+   *   2) If not found, fall back to `virsh domifaddr` for the specific domain
+   *
+   * This makes the reported IP match what libvirt sees for the running VM,
+   * which is what the user actually needs to reach over VPN.
+   *
    * @param {string} vmName - Name of the VM
    * @param {string} macAddress - MAC address of the VM
    * @returns {Promise<string|null>} IP address or null if not found
    */
   async getVMIPAddress(vmName, macAddress) {
+    // 1) Try DHCP leases first
     try {
       const leases = await this.executeVirsh(['net-dhcp-leases', this.networkName]);
-      
+
       // Parse the DHCP leases output
       const lines = leases.split('\n');
       for (const line of lines) {
@@ -263,16 +272,38 @@ class LibvirtAdapter {
           // Extract IP from line (format: "... 10.12.10.100/24 ...")
           const match = line.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/\d+/);
           if (match) {
-            console.log(`Found IP ${match[1]} for VM ${vmName}`);
+            console.log(`Found IP ${match[1]} for VM ${vmName} from DHCP leases`);
             return match[1];
           }
         }
       }
 
-      console.warn(`No IP found for VM ${vmName} with MAC ${macAddress}`);
+      console.warn(`No DHCP lease IP found for VM ${vmName} with MAC ${macAddress}`);
+    } catch (error) {
+      console.error(`Failed to get DHCP leases for network ${this.networkName}:`, error.message);
+      // Fall through to domifaddr fallback
+    }
+
+    // 2) Fallback: use domifaddr for the specific domain
+    try {
+      const output = await this.executeVirsh(['domifaddr', vmName, '--full']);
+      const lines = output.split('\n');
+
+      for (const line of lines) {
+        // Typical format contains "ipv4" and "10.12.10.X/24"
+        if (line.toLowerCase().includes('ipv4')) {
+          const match = line.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/\d+/);
+          if (match) {
+            console.log(`Found IP ${match[1]} for VM ${vmName} from domifaddr`);
+            return match[1];
+          }
+        }
+      }
+
+      console.warn(`No IP found for VM ${vmName} via domifaddr`);
       return null;
     } catch (error) {
-      console.error(`Failed to get IP for VM ${vmName}:`, error.message);
+      console.error(`Failed to get IP for VM ${vmName} via domifaddr:`, error.message);
       return null;
     }
   }
