@@ -1,25 +1,37 @@
+// context/AuthContext.jsx
 import { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const AuthContext = createContext(null);
+
+// You can also move this to a separate config file if you want
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const navigate = useNavigate();
+
   const isAuthenticated = !!user;
 
-  // Fetch logged-in user using cookie JWT
+  // 🔹 Fetch logged-in user using cookie JWT
   const fetchUser = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/user/me`, {
+      const res = await axios.get(`${API_BASE}/user/me`, {
         withCredentials: true,
       });
-console.log(res,"this is from res authcontext me")
-      // EXPECTED RESPONSE: { success, user }
-       setUser(res.data || null);
 
+      console.log("fetchUser /me response:", res.data);
+
+      // Expecting backend to return either:
+      // { user: {...} }  OR  just { ...userFields }
+      const userData = res.data.user || res.data || null;
+
+      setUser(userData);
     } catch (err) {
+      console.error("Error in fetchUser:", err);
       setUser(null);
     } finally {
       setLoading(false);
@@ -30,28 +42,35 @@ console.log(res,"this is from res authcontext me")
     fetchUser();
   }, []);
 
-  // Login function
+  // 🔹 Login function
   const login = async (email, password) => {
     const res = await axios.post(
-      "http://localhost:5001/api/auth/login",
+      `${API_BASE}/auth/login`,
       { email, password },
       { withCredentials: true }
     );
 
-    setUser(res.data.user); // backend must send user object
+    console.log("login response:", res.data);
+
+    // Again, assuming { user: {...} }
+    setUser(res.data.user || null);
     return res.data.user;
   };
 
-  // Logout function
+  // 🔹 Logout function
   const logout = async () => {
-    await axios.post(
-      `${import.meta.env.VITE_API_URL}/auth/logout`,
-      {},
-      { withCredentials: true }
-    );
-    console.log("hello")
-    setUser(null);
-    navigate("/login");
+    try {
+      await axios.post(
+        `${API_BASE}/auth/logout`,
+        {},
+        { withCredentials: true }
+      );
+    } catch (err) {
+      console.error("Error during logout:", err);
+    } finally {
+      setUser(null);
+      navigate("/login");
+    }
   };
 
   return (
@@ -64,7 +83,6 @@ console.log(res,"this is from res authcontext me")
         login,
         logout,
         fetchUser,
-       
       }}
     >
       {children}

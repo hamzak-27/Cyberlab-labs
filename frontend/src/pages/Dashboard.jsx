@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import Sidebar from '../components/layout/Sidebar'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
+import { EnhancedCourseProgressCard, CoursesSection } from '../components/ui/EnhancedCourseProgressCard'
 import axios from 'axios'
 import {
   ResponsiveContainer,
@@ -16,7 +17,18 @@ import {
 import { useAuthStore } from '../store/useAuthStore'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Flame } from 'lucide-react'
+import { 
+  Flame, 
+  BookOpen, 
+  Clock, 
+  TrendingUp, 
+  Bookmark, 
+  ChevronRight,
+  Star,
+  Award,
+  Sparkles,
+  Zap 
+} from 'lucide-react'
 
 /**
  * Dashboard.jsx
@@ -385,24 +397,11 @@ export default function Dashboard({ user }) {
             </div>
 
             {/* Recommended / Courses */}
-            <div className="mt-8">
-              <Card gradient={true}>
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-bold text-white">Your Courses</h3>
-                  <Button variant="ghost" size="sm" onClick={() => navigate('/courses')}>View All</Button>
-                </div>
-
-                <div>
-                  {stats?.courses?.length ? (
-                    stats.courses.map((c) => (
-                      <CourseProgressCard key={c.courseId} course={c} onContinue={onContinueCourse} />
-                    ))
-                  ) : (
-                    <div className="text-gray-400 p-4">No enrolled courses yet.</div>
-                  )}
-                </div>
-              </Card>
-            </div>
+                <CoursesSection 
+                  stats={stats} 
+                  onContinueCourse={onContinueCourse} 
+                  navigate={navigate} 
+                />
           </>
         )}
       </main>

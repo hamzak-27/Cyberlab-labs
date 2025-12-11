@@ -11,8 +11,39 @@ const Sidebar = ({ user, stats }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [shouldAnimate, setShouldAnimate] = useState(true)
   const scrollPositionRef = useRef(0)
   const { setUser } = useAuth();
+
+  // Set animation to false after initial mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShouldAnimate(false)
+    }, 100) // Short delay to ensure initial animation runs
+    
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Re-enable animation on page reload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // This will run when the page is about to reload
+      sessionStorage.setItem('sidebarShouldAnimate', 'true')
+    }
+
+    // Check if we're coming from a page reload
+    const shouldAnimateOnLoad = sessionStorage.getItem('sidebarShouldAnimate') === 'true'
+    if (shouldAnimateOnLoad) {
+      setShouldAnimate(true)
+      sessionStorage.removeItem('sidebarShouldAnimate')
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [])
 
   // Lock body scroll when mobile sidebar is open
   useEffect(() => {
@@ -51,15 +82,12 @@ const Sidebar = ({ user, stats }) => {
 
   const navigationItems = [
     { icon: Shield, label: 'Dashboard', path: '/dashboard' },
-    { icon: BookOpen, label: 'Courses', path: '/courses' }, // Changed from 'Modules' to 'Courses'
+    { icon: BookOpen, label: 'Courses', path: '/courses' },
     { icon: FlaskConical, label: 'Practice Labs', path: '/labs' },
     { icon: Users, label: 'Community', path: '/community' },
   ]
 
-
   const isActive = (path) => {
-    // Check if current path starts with the navigation path
-    // This handles nested routes like /courses/:courseId/modules
     return location.pathname.startsWith(path)
   }
 
@@ -76,14 +104,9 @@ const Sidebar = ({ user, stats }) => {
         { withCredentials: true }
       );
 
-      // Clear user data
-     
       setUser(null)
-        toast.success("🔐 You are securely logged out.");
-
+      toast.success("🔐 You are securely logged out.");
       navigate("/login");
-    
-
     } catch (err) {
       console.error("Logout failed:", err);
     }
@@ -120,9 +143,9 @@ const Sidebar = ({ user, stats }) => {
       <div className="relative z-10 flex flex-col min-h-full">
         {/* User Profile Section */}
         <motion.div
-          initial={{ y: -20, opacity: 0 }}
+          initial={shouldAnimate ? { y: -20, opacity: 0 } : false}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: shouldAnimate ? 0.2 : 0 }}
           className="pt-4 pb-4 px-4 md:pt-6 md:pb-6 md:px-6 border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/5 to-blue-500/5"
         >
           <div className="flex items-center gap-3 md:gap-4 mb-4">
@@ -151,27 +174,27 @@ const Sidebar = ({ user, stats }) => {
           </div>
 
           {/* User Stats */}
-         <div className="grid grid-cols-2 gap-2 md:gap-3 mt-4">
-  <div className="text-center p-2 bg-gray-800/50 rounded-lg backdrop-blur-sm">
-    <div className="text-cyan-400 font-bold text-base md:text-lg">
-      {user?.labsStats?.totalFlagsCaptured || 0}
-    </div>
-    <div className="text-gray-400 text-xs">Flags</div>
-  </div>
-  <div className="text-center p-2 bg-gray-800/50 rounded-lg backdrop-blur-sm">
-    <div className="text-green-400 font-bold text-base md:text-lg">
-      {user?.labsStats?.labsCompleted || 0}
-    </div>
-    <div className="text-gray-400 text-xs">Labs</div>
-  </div>
-</div>
+          <div className="grid grid-cols-2 gap-2 md:gap-3 mt-4">
+            <div className="text-center p-2 bg-gray-800/50 rounded-lg backdrop-blur-sm">
+              <div className="text-cyan-400 font-bold text-base md:text-lg">
+                {user?.labsStats?.totalFlagsCaptured || 0}
+              </div>
+              <div className="text-gray-400 text-xs">Flags</div>
+            </div>
+            <div className="text-center p-2 bg-gray-800/50 rounded-lg backdrop-blur-sm">
+              <div className="text-green-400 font-bold text-base md:text-lg">
+                {user?.labsStats?.labsCompleted || 0}
+              </div>
+              <div className="text-gray-400 text-xs">Labs</div>
+            </div>
+          </div>
         </motion.div>
 
         {/* Main Navigation */}
         <motion.div
-          initial={{ y: 20, opacity: 0 }}
+          initial={shouldAnimate ? { y: 20, opacity: 0 } : false}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: shouldAnimate ? 0.4 : 0 }}
           className="p-3 md:p-4"
         >
           <h4 className="text-gray-400 text-sm font-semibold mb-3 px-2">NAVIGATION</h4>
@@ -183,9 +206,9 @@ const Sidebar = ({ user, stats }) => {
               return (
                 <motion.button
                   key={item.label}
-                  initial={{ x: -20, opacity: 0 }}
+                  initial={shouldAnimate ? { x: -20, opacity: 0 } : false}
                   animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.5 + index * 0.1 }}
+                  transition={{ delay: shouldAnimate ? (0.5 + index * 0.1) : 0 }}
                   whileHover={{ x: 4 }}
                   whileTap={{ scale: 0.98 }}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all duration-300 group relative ${
@@ -227,9 +250,9 @@ const Sidebar = ({ user, stats }) => {
 
         {/* Logout Button */}
         <motion.div
-          initial={{ y: 20, opacity: 0 }}
+          initial={shouldAnimate ? { y: 20, opacity: 0 } : false}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.7 }}
+          transition={{ delay: shouldAnimate ? 0.7 : 0 }}
           className="p-3 md:p-4 border-t border-cyan-500/20 mt-auto"
         >
           <motion.button
@@ -255,7 +278,7 @@ const Sidebar = ({ user, stats }) => {
       {/* Mobile Toggle Button - Only visible on mobile when sidebar is closed */}
       {!isMobileOpen && (
         <motion.button
-          initial={{ opacity: 0, scale: 0.8 }}
+          initial={shouldAnimate ? { opacity: 0, scale: 0.8 } : false}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.8 }}
           onClick={toggleMobileMenu}
